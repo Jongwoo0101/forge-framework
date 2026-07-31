@@ -1,0 +1,39 @@
+Phase 1 - 기반
+Boot Manager
+Kernel
+Logger
+Shell
+Command System
+
+Phase 2 - 프로세스
+PCB
+Process Manager
+Process State
+Scheduler
+Timer
+
+Phase 3 - 메모리
+Memory Manager
+Heap
+Virtual Memory
+Paging
+TLB
+
+Phase 4 - 파일 시스템
+Virtual Disk (disk.img)
+Inode
+Bitmap
+Directory
+File API
+
+Phase 5 - 장치 및 인터럽트
+Device Manager
+Interrupt Manager
+Timer Interrupt
+Keyboard/Disk Interrupt
+Phase 6 - 운영체제 완성
+Deadlock Manager
+Event Logger
+System Call 확장
+Shutdown
+통합 테스트
