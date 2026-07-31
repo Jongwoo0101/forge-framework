@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * ForgeOS 애플리케이션의 진입점.
- *
+ * 현재 Phase2 완료
  * <p>실행 순서: EventLogger 준비 → BootManager 부팅(내부에서 Kernel 초기화)
  * → ForgeShell 실행.</p>
  */
