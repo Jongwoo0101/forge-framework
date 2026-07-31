@@ -1,31 +1,28 @@
 package forgeframework.boot;
 
 import forgeframework.common.ForgeOSConstants;
+import forgeframework.hardware.HardwareTimer;
 import forgeframework.kernel.Kernel;
 import forgeframework.logger.EventLogger;
 import forgeframework.logger.LogLevel;
+import forgeframework.process.ProcessManager;
+import forgeframework.process.scheduler.FcfsScheduler;
+import forgeframework.process.scheduler.RoundRobinScheduler;
+import forgeframework.process.scheduler.Scheduler;
 
 /**
- * ForgeOS의 부팅 절차를 담당하는 매니저.
- *
- * <p>{@link BootStage}에 정의된 순서대로 부팅 단계를 진행하며,
- * KERNEL_INIT 단계에서 {@link Kernel} Singleton을 초기화한다.
- * 각 단계의 진행 상황은 {@link EventLogger}를 통해 기록된다.</p>
+ * ForgeFramework의 부팅 절차를 담당하는 매니저.
  */
 public class BootManager {
 
     private final EventLogger logger;
     private Kernel kernel;
+    private HardwareTimer timer;
 
     public BootManager(EventLogger logger) {
         this.logger = logger;
     }
 
-    /**
-     * 전체 부팅 절차를 순차적으로 실행한다.
-     *
-     * @return 초기화가 완료된 Kernel 인스턴스
-     */
     public Kernel boot() {
         printBanner();
         for (BootStage stage : BootStage.values()) {
@@ -39,6 +36,17 @@ public class BootManager {
 
         if (stage == BootStage.KERNEL_INIT) {
             kernel = Kernel.initialize(logger);
+        } else if (stage == BootStage.SUBSYSTEM_INIT) {
+
+            // 원하는 스케줄러로 변경 가능 (전략 패턴 적용 추후엔 scheduler 명령어로 원하는 스케줄러 선택 가능)
+            Scheduler activeScheduler = new RoundRobinScheduler();
+            // Scheduler activeScheduler = new FcfsScheduler();
+
+            ProcessManager processManager = new ProcessManager(logger, activeScheduler);
+            kernel.registerProcessManager(processManager);
+
+            timer = new HardwareTimer(kernel);
+            timer.start();
         }
 
         delay();
@@ -55,7 +63,7 @@ public class BootManager {
     private void printBanner() {
         System.out.println("=================================================");
         System.out.println(" " + ForgeOSConstants.OS_NAME + " v" + ForgeOSConstants.OS_VERSION);
-        System.out.println(" Operating System Kernel Architecture Simulator");
+        System.out.println(" Operating System Kernel Architecture Engine");
         System.out.println("=================================================");
     }
 }
