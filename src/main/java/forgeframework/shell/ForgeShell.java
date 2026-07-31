@@ -5,6 +5,9 @@ import forgeframework.command.CommandRegistry;
 import forgeframework.command.HelpCommand;
 import forgeframework.command.ShutdownCommand;
 import forgeframework.command.UptimeCommand;
+import forgeframework.command.PsCommand;
+import forgeframework.command.ExecCommand;
+import forgeframework.command.KillCommand;
 import forgeframework.common.ForgeOSConstants;
 import forgeframework.kernel.Kernel;
 import forgeframework.syscall.SystemCallResult;
@@ -39,6 +42,11 @@ public class ForgeShell {
         registry.register(new HelpCommand(registry));
         registry.register(new ShutdownCommand());
         registry.register(new UptimeCommand());
+
+        // Phase 2: 프로세스 관리 명령어 등록
+        registry.register(new PsCommand());
+        registry.register(new ExecCommand());
+        registry.register(new KillCommand());
     }
 
     /**
