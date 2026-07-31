@@ -1,0 +1,32 @@
+# ===== Build output =====
+out/
+bin/
+build/
+target/
+*.class
+
+# ===== IDE =====
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Logs =====
+*.log
+
+# ===== Packaging =====
+*.jar
+*.war
+
+# ===== Misc =====
+*.tmp
+*.bak
