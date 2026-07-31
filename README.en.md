@@ -2,7 +2,7 @@
 
 **Operating System Kernel Architecture Simulator Engine**
 
-> 🇺🇸 English Documentation (한국어 버전: [README_KR.md](README_KR.md))
+> 🇺🇸 English Documentation (한국어 버전: [README.md](README.md))
 
 ForgeFramework is **not a real operating system kernel** that directly controls hardware. Instead, it is an **object-oriented simulation engine** that recreates the internal architecture of an operating system.
 
