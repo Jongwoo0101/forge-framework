@@ -2,7 +2,7 @@
 
 **Operating System Kernel Architecture Simulator Engine**
 
-> 🇰🇷 한국어 문서 (English version: [README.md](README.md))
+> 🇰🇷 한국어 문서 (English version: [README.en.md](README.en.md))
 
 ForgeFramework는 실제 하드웨어를 제어하는 커널이 아니라, **운영체제 내부 구조를 객체지향적으로 재현하는 시뮬레이터 엔진**입니다.
 
