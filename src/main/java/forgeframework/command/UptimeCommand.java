@@ -1,9 +1,9 @@
-package forgeos.command;
+package forgeframework.command;
 
-import forgeos.kernel.Kernel;
-import forgeos.syscall.SystemCallRequest;
-import forgeos.syscall.SystemCallResult;
-import forgeos.syscall.SystemCallType;
+import forgeframework.kernel.Kernel;
+import forgeframework.syscall.SystemCallRequest;
+import forgeframework.syscall.SystemCallResult;
+import forgeframework.syscall.SystemCallType;
 
 /**
  * 커널의 가동 시간을 조회하는 명령어.

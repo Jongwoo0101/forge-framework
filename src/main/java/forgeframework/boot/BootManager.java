@@ -1,9 +1,9 @@
-package forgeos.boot;
+package forgeframework.boot;
 
-import forgeos.common.ForgeOSConstants;
-import forgeos.kernel.Kernel;
-import forgeos.logger.EventLogger;
-import forgeos.logger.LogLevel;
+import forgeframework.common.ForgeOSConstants;
+import forgeframework.kernel.Kernel;
+import forgeframework.logger.EventLogger;
+import forgeframework.logger.LogLevel;
 
 /**
  * ForgeOS의 부팅 절차를 담당하는 매니저.

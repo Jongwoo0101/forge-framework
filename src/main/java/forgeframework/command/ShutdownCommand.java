@@ -1,9 +1,9 @@
-package forgeos.command;
+package forgeframework.command;
 
-import forgeos.kernel.Kernel;
-import forgeos.syscall.SystemCallRequest;
-import forgeos.syscall.SystemCallResult;
-import forgeos.syscall.SystemCallType;
+import forgeframework.kernel.Kernel;
+import forgeframework.syscall.SystemCallRequest;
+import forgeframework.syscall.SystemCallResult;
+import forgeframework.syscall.SystemCallType;
 
 /**
  * 시스템을 종료하는 명령어.

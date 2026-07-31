@@ -1,7 +1,7 @@
-package forgeos.command;
+package forgeframework.command;
 
-import forgeos.kernel.Kernel;
-import forgeos.syscall.SystemCallResult;
+import forgeframework.kernel.Kernel;
+import forgeframework.syscall.SystemCallResult;
 
 /**
  * Shell에서 실행 가능한 명령어를 표현하는 인터페이스 (Command 패턴).

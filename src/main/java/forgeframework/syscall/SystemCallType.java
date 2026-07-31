@@ -1,4 +1,4 @@
-package forgeos.syscall;
+package forgeframework.syscall;
 
 /**
  * Kernel이 처리할 수 있는 시스템 콜의 종류.

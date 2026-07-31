@@ -1,4 +1,4 @@
-package forgeos.logger;
+package forgeframework.logger;
 
 /**
  * 로그 이벤트를 표준 출력(콘솔)에 출력하는 기본 {@link LogListener} 구현체.

@@ -1,10 +1,10 @@
-package forgeos;
+package forgeframework;
 
-import forgeos.boot.BootManager;
-import forgeos.kernel.Kernel;
-import forgeos.logger.ConsoleLogListener;
-import forgeos.logger.EventLogger;
-import forgeos.shell.ForgeShell;
+import forgeframework.boot.BootManager;
+import forgeframework.kernel.Kernel;
+import forgeframework.logger.ConsoleLogListener;
+import forgeframework.logger.EventLogger;
+import forgeframework.shell.ForgeShell;
 
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;

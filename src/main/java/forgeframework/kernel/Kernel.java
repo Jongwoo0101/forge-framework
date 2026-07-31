@@ -1,11 +1,11 @@
-package forgeos.kernel;
+package forgeframework.kernel;
 
-import forgeos.exception.ForgeOSException;
-import forgeos.logger.EventLogger;
-import forgeos.logger.LogLevel;
-import forgeos.syscall.SystemCallRequest;
-import forgeos.syscall.SystemCallResult;
-import forgeos.syscall.SystemCallType;
+import forgeframework.exception.ForgeOSException;
+import forgeframework.logger.EventLogger;
+import forgeframework.logger.LogLevel;
+import forgeframework.syscall.SystemCallRequest;
+import forgeframework.syscall.SystemCallResult;
+import forgeframework.syscall.SystemCallType;
 
 import java.time.Duration;
 import java.time.Instant;

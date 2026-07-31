@@ -1,4 +1,4 @@
-package forgeos.logger;
+package forgeframework.logger;
 
 /**
  * 로그 이벤트의 심각도 수준을 나타내는 열거형.

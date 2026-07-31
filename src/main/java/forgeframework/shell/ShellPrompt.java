@@ -1,6 +1,6 @@
-package forgeos.shell;
+package forgeframework.shell;
 
-import forgeos.common.ForgeOSConstants;
+import forgeframework.common.ForgeOSConstants;
 
 /**
  * ForgeShell의 프롬프트 문자열을 관리하는 클래스.

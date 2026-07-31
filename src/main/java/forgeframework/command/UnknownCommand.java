@@ -1,7 +1,7 @@
-package forgeos.command;
+package forgeframework.command;
 
-import forgeos.kernel.Kernel;
-import forgeos.syscall.SystemCallResult;
+import forgeframework.kernel.Kernel;
+import forgeframework.syscall.SystemCallResult;
 
 /**
  * 등록되지 않은 명령어가 입력되었을 때 반환되는 Null Object.

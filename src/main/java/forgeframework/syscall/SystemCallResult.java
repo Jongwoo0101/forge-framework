@@ -1,4 +1,4 @@
-package forgeos.syscall;
+package forgeframework.syscall;
 
 /**
  * Kernel이 시스템 콜 처리 후 반환하는 결과.

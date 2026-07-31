@@ -1,9 +1,9 @@
-package forgeos.command;
+package forgeframework.command;
 
-import forgeos.kernel.Kernel;
-import forgeos.syscall.SystemCallRequest;
-import forgeos.syscall.SystemCallResult;
-import forgeos.syscall.SystemCallType;
+import forgeframework.kernel.Kernel;
+import forgeframework.syscall.SystemCallRequest;
+import forgeframework.syscall.SystemCallResult;
+import forgeframework.syscall.SystemCallType;
 
 /**
  * 등록된 모든 명령어의 목록과 설명을 출력하는 명령어.

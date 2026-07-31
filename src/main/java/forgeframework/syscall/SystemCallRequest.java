@@ -1,4 +1,4 @@
-package forgeos.syscall;
+package forgeframework.syscall;
 
 /**
  * Shell/Command 계층이 Kernel에게 전달하는 시스템 콜 요청.

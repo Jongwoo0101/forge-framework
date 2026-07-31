@@ -1,13 +1,13 @@
-package forgeos.shell;
+package forgeframework.shell;
 
-import forgeos.command.Command;
-import forgeos.command.CommandRegistry;
-import forgeos.command.HelpCommand;
-import forgeos.command.ShutdownCommand;
-import forgeos.command.UptimeCommand;
-import forgeos.common.ForgeOSConstants;
-import forgeos.kernel.Kernel;
-import forgeos.syscall.SystemCallResult;
+import forgeframework.command.Command;
+import forgeframework.command.CommandRegistry;
+import forgeframework.command.HelpCommand;
+import forgeframework.command.ShutdownCommand;
+import forgeframework.command.UptimeCommand;
+import forgeframework.common.ForgeOSConstants;
+import forgeframework.kernel.Kernel;
+import forgeframework.syscall.SystemCallResult;
 
 import java.util.Scanner;
 

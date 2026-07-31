@@ -1,4 +1,4 @@
-package forgeos.exception;
+package forgeframework.exception;
 
 /**
  * ForgeOS 내부에서 발생하는 모든 예외의 최상위 클래스.

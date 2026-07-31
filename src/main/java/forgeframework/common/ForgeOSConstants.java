@@ -1,4 +1,4 @@
-package forgeos.common;
+package forgeframework.common;
 
 /**
  * ForgeOS 전역에서 사용되는 상수를 모아둔 클래스.

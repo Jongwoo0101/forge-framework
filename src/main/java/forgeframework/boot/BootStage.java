@@ -1,4 +1,4 @@
-package forgeos.boot;
+package forgeframework.boot;
 
 /**
  * ForgeOS 부팅 과정의 각 단계를 나타내는 열거형.

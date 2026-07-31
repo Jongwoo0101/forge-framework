@@ -1,4 +1,4 @@
-package forgeos.logger;
+package forgeframework.logger;
 
 /**
  * 로그 이벤트를 수신하는 Observer 인터페이스.
