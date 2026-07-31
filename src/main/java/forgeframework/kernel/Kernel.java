@@ -3,6 +3,8 @@ package forgeframework.kernel;
 import forgeframework.exception.ForgeOSException;
 import forgeframework.logger.EventLogger;
 import forgeframework.logger.LogLevel;
+import forgeframework.process.Process;
+import forgeframework.process.ProcessManager;
 import forgeframework.syscall.SystemCallRequest;
 import forgeframework.syscall.SystemCallResult;
 import forgeframework.syscall.SystemCallType;
@@ -19,7 +21,7 @@ import java.time.Instant;
  *
  * <p>Phase 1에서는 서브시스템 매니저가 아직 존재하지 않으므로
  * 커널 자체 기능(HELP, SHUTDOWN, UPTIME)만 처리한다.
- * 이후 Phase에서 {@code registerManager()} 형태의 확장 지점을 통해
+ * 이후 Phase에서 {@code registerProcessManager()} 형태의 확장 지점을 통해
  * Process/Memory/FileSystem Manager 등을 등록받아 위임하는 구조로 확장한다.</p>
  */
 public final class Kernel {
@@ -29,6 +31,8 @@ public final class Kernel {
     private final EventLogger logger;
     private final Instant bootTime;
     private boolean running;
+
+    private ProcessManager processManager;
 
     private Kernel(EventLogger logger) {
         this.logger = logger;
@@ -65,6 +69,26 @@ public final class Kernel {
     }
 
     /**
+     * ProcessManager를 커널에 등록한다.
+     * BootManager의 SUBSYSTEM_INIT 단계에서 호출된다.
+     *
+     * @param processManager 등록할 프로세스 매니저
+     */
+    public void registerProcessManager(ProcessManager processManager) {
+        this.processManager = processManager;
+    }
+
+    /**
+     * HardwareTimer로부터 발생하는 타이머 인터럽트를 처리한다.
+     * ProcessManager에게 인터럽트 발생을 알려 Context Switch 등의 스케줄링을 유도한다.
+     */
+    public void handleTimerInterrupt() {
+        if (processManager != null) {
+            processManager.handleTimerInterrupt();
+        }
+    }
+
+    /**
      * 시스템 콜을 처리하는 유일한 진입점.
      *
      * <p>Shell/Command 계층은 반드시 이 메서드를 통해서만 커널 기능에 접근한다.</p>
@@ -80,6 +104,9 @@ public final class Kernel {
             case HELP -> handleHelp();
             case SHUTDOWN -> handleShutdown();
             case UPTIME -> handleUptime();
+            case PS -> handlePs();
+            case EXEC -> handleExec(request.getArgs());
+            case KILL -> handleKill(request.getArgs());
         };
     }
 
@@ -97,6 +124,54 @@ public final class Kernel {
         Duration uptime = Duration.between(bootTime, Instant.now());
         String formatted = formatDuration(uptime);
         return SystemCallResult.success("가동 시간: " + formatted, uptime);
+    }
+
+    private SystemCallResult handlePs() {
+        if (processManager == null) {
+            return SystemCallResult.failure("ProcessManager가 로드되지 않았습니다.");
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("%-5s | %-12s | %-10s | %s\n", "PID", "STATE", "CPU_TIME", "NAME"));
+        sb.append("-".repeat(50));
+
+        for (Process p : processManager.getAllProcesses().values()) {
+            String stateIndicator = (p.getPcb().getState() == forgeframework.process.ProcessState.RUNNING) ? "*" : " ";
+            sb.append(String.format("\n%-5d | %-12s | %-10d | %s%s",
+                    p.getPcb().getPid(), p.getPcb().getState(), p.getPcb().getCpuTimeUsed(), p.getName(), stateIndicator));
+        }
+        return SystemCallResult.success(sb.toString());
+    }
+
+    private SystemCallResult handleExec(String[] args) {
+        if (processManager == null) {
+            return SystemCallResult.failure("ProcessManager가 로드되지 않았습니다.");
+        }
+        if (args.length == 0) {
+            return SystemCallResult.failure("사용법: exec <프로세스명>");
+        }
+        Process p = processManager.createProcess(args[0]);
+        return SystemCallResult.success("프로세스가 생성되었습니다. (PID: " + p.getPcb().getPid() + ")");
+    }
+
+    private SystemCallResult handleKill(String[] args) {
+        if (processManager == null) {
+            return SystemCallResult.failure("ProcessManager가 로드되지 않았습니다.");
+        }
+        if (args.length == 0) {
+            return SystemCallResult.failure("사용법: kill <PID>");
+        }
+        try {
+            int pid = Integer.parseInt(args[0]);
+            boolean success = processManager.killProcess(pid);
+            if (success) {
+                return SystemCallResult.success("프로세스(PID: " + pid + ")가 종료되었습니다.");
+            } else {
+                return SystemCallResult.failure("존재하지 않거나 이미 종료된 프로세스입니다.");
+            }
+        } catch (NumberFormatException e) {
+            return SystemCallResult.failure("PID는 숫자여야 합니다.");
+        }
     }
 
     private String formatDuration(Duration duration) {
