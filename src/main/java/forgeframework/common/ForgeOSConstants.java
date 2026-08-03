@@ -23,6 +23,15 @@ public final class ForgeOSConstants {
     /** 명령어 파싱 시 사용하는 구분자. */
     public static final String COMMAND_DELIMITER = " ";
 
+    /** exec 시 burstTime 인자를 생략했을 때 적용되는 기본 실행 시간(tick). */
+    public static final long DEFAULT_BURST_TIME = 5L;
+
+    /** 선점형 스케줄러의 기본 타임 퀀텀(tick). */
+    public static final int DEFAULT_TIME_QUANTUM = 3;
+
+    /** HardwareTimer의 1 tick당 실제 대기 시간(ms). */
+    public static final long TICK_INTERVAL_MS = 1000L;
+
     private ForgeOSConstants() {
         // 인스턴스화 방지
     }
