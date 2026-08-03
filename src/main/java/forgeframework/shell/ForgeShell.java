@@ -8,21 +8,13 @@ import forgeframework.command.UptimeCommand;
 import forgeframework.command.PsCommand;
 import forgeframework.command.ExecCommand;
 import forgeframework.command.KillCommand;
+import forgeframework.command.SchedulerCommand;
 import forgeframework.common.ForgeOSConstants;
 import forgeframework.kernel.Kernel;
 import forgeframework.syscall.SystemCallResult;
 
 import java.util.Scanner;
 
-/**
- * ForgeOS의 사용자 인터페이스인 CLI Shell.
- *
- * <p>사용자 입력을 받아 {@link CommandRegistry}를 통해 해당하는
- * {@link Command}를 찾아 실행한다.
- *
- * <p><b>중요:</b> ForgeShell은 절대로 Kernel의 서브시스템에 직접 접근하지 않는다.
- * 모든 기능 실행은 반드시 Command → Kernel.handleSystemCall() 경로를 거친다.</p>
- */
 public class ForgeShell {
 
     private final Kernel kernel;
@@ -43,16 +35,12 @@ public class ForgeShell {
         registry.register(new ShutdownCommand());
         registry.register(new UptimeCommand());
 
-        // Phase 2: 프로세스 관리 명령어 등록
         registry.register(new PsCommand());
         registry.register(new ExecCommand());
         registry.register(new KillCommand());
+        registry.register(new SchedulerCommand());
     }
 
-    /**
-     * Shell의 REPL(Read-Eval-Print Loop)을 실행한다.
-     * Kernel이 실행 중(running) 상태인 동안 계속 반복된다.
-     */
     public void run() {
         System.out.println(ForgeOSConstants.OS_NAME + " Shell에 오신 것을 환영합니다. 'help'를 입력해보세요.");
 
