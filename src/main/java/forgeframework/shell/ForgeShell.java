@@ -9,6 +9,10 @@ import forgeframework.command.PsCommand;
 import forgeframework.command.ExecCommand;
 import forgeframework.command.KillCommand;
 import forgeframework.command.SchedulerCommand;
+import forgeframework.command.MallocCommand;
+import forgeframework.command.FreeCommand;
+import forgeframework.command.MeminfoCommand;
+import forgeframework.command.TranslateCommand;
 import forgeframework.common.ForgeOSConstants;
 import forgeframework.kernel.Kernel;
 import forgeframework.syscall.SystemCallResult;
@@ -39,6 +43,10 @@ public class ForgeShell {
         registry.register(new ExecCommand());
         registry.register(new KillCommand());
         registry.register(new SchedulerCommand());
+        registry.register(new MallocCommand());
+        registry.register(new FreeCommand());
+        registry.register(new MeminfoCommand());
+        registry.register(new TranslateCommand());
     }
 
     public void run() {
