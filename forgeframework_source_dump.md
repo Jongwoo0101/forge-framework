@@ -1,6 +1,6 @@
 # ForgeFramework Source Dump
 
-총 Java 파일 수 : **33개**
+총 Java 파일 수 : **34개**
 
 ---
 
@@ -15,6 +15,7 @@
 - `command/HelpCommand.java`
 - `command/KillCommand.java`
 - `command/PsCommand.java`
+- `command/SchedulerCommand.java`
 - `command/ShutdownCommand.java`
 - `command/UnknownCommand.java`
 - `command/UptimeCommand.java`
@@ -110,7 +111,6 @@ import forgeframework.kernel.Kernel;
 import forgeframework.logger.EventLogger;
 import forgeframework.logger.LogLevel;
 import forgeframework.process.ProcessManager;
-import forgeframework.process.scheduler.FcfsScheduler;
 import forgeframework.process.scheduler.RoundRobinScheduler;
 import forgeframework.process.scheduler.Scheduler;
 
@@ -142,9 +142,8 @@ public class BootManager {
             kernel = Kernel.initialize(logger);
         } else if (stage == BootStage.SUBSYSTEM_INIT) {
 
-            // 원하는 스케줄러로 변경 가능 (전략 패턴 적용 추후엔 scheduler 명령어로 원하는 스케줄러 선택 가능)
+            // 원하는 스케줄러로 변경 가능 (전략 패턴)
             Scheduler activeScheduler = new RoundRobinScheduler();
-            // Scheduler activeScheduler = new FcfsScheduler();
 
             ProcessManager processManager = new ProcessManager(logger, activeScheduler);
             kernel.registerProcessManager(processManager);
@@ -333,9 +332,15 @@ import forgeframework.syscall.SystemCallRequest;
 import forgeframework.syscall.SystemCallResult;
 import forgeframework.syscall.SystemCallType;
 
+/**
+ * 새 프로세스를 생성하는 명령어.
+ *
+ * <p>사용법: {@code exec <이름> [burstTime]}. burstTime을 생략하면
+ * 커널의 기본 burst time이 적용된다.</p>
+ */
 public final class ExecCommand implements Command {
     @Override public String name() { return "exec"; }
-    @Override public String description() { return "새 프로세스를 생성합니다. (exec <이름>)"; }
+    @Override public String description() { return "새 프로세스를 생성합니다. (exec <이름> [burstTime])"; }
     @Override public SystemCallResult execute(Kernel kernel, String[] args) {
         return kernel.handleSystemCall(new SystemCallRequest(SystemCallType.EXEC, args));
     }
@@ -445,7 +450,35 @@ public final class PsCommand implements Command {
 
 ---
 
-# 10. command/ShutdownCommand.java
+# 10. command/SchedulerCommand.java
+
+**Path**
+`src/main/java/forgeframework/command/SchedulerCommand.java`
+
+```java
+package forgeframework.command;
+
+import forgeframework.kernel.Kernel;
+import forgeframework.syscall.SystemCallRequest;
+import forgeframework.syscall.SystemCallResult;
+import forgeframework.syscall.SystemCallType;
+
+/**
+ * 현재 스케줄러를 조회하거나 런타임에 교체하는 명령어.
+ * 사용법: scheduler [fcfs|rr]
+ */
+public final class SchedulerCommand implements Command {
+    @Override public String name() { return "scheduler"; }
+    @Override public String description() { return "스케줄러를 조회하거나 변경합니다. (scheduler [fcfs|rr])"; }
+    @Override public SystemCallResult execute(Kernel kernel, String[] args) {
+        return kernel.handleSystemCall(new SystemCallRequest(SystemCallType.SCHEDULER, args));
+    }
+}
+```
+
+---
+
+# 11. command/ShutdownCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/ShutdownCommand.java`
@@ -482,7 +515,7 @@ public final class ShutdownCommand implements Command {
 
 ---
 
-# 11. command/UnknownCommand.java
+# 12. command/UnknownCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/UnknownCommand.java`
@@ -528,7 +561,7 @@ public final class UnknownCommand implements Command {
 
 ---
 
-# 12. command/UptimeCommand.java
+# 13. command/UptimeCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/UptimeCommand.java`
@@ -565,7 +598,7 @@ public final class UptimeCommand implements Command {
 
 ---
 
-# 13. common/ForgeOSConstants.java
+# 14. common/ForgeOSConstants.java
 
 **Path**
 `src/main/java/forgeframework/common/ForgeOSConstants.java`
@@ -596,6 +629,15 @@ public final class ForgeOSConstants {
     /** 명령어 파싱 시 사용하는 구분자. */
     public static final String COMMAND_DELIMITER = " ";
 
+    /** exec 시 burstTime 인자를 생략했을 때 적용되는 기본 실행 시간(tick). */
+    public static final long DEFAULT_BURST_TIME = 5L;
+
+    /** 선점형 스케줄러의 기본 타임 퀀텀(tick). */
+    public static final int DEFAULT_TIME_QUANTUM = 3;
+
+    /** HardwareTimer의 1 tick당 실제 대기 시간(ms). */
+    public static final long TICK_INTERVAL_MS = 1000L;
+
     private ForgeOSConstants() {
         // 인스턴스화 방지
     }
@@ -604,7 +646,7 @@ public final class ForgeOSConstants {
 
 ---
 
-# 14. exception/ForgeOSException.java
+# 15. exception/ForgeOSException.java
 
 **Path**
 `src/main/java/forgeframework/exception/ForgeOSException.java`
@@ -632,7 +674,7 @@ public class ForgeOSException extends RuntimeException {
 
 ---
 
-# 15. hardware/HardwareTimer.java
+# 16. hardware/HardwareTimer.java
 
 **Path**
 `src/main/java/forgeframework/hardware/HardwareTimer.java`
@@ -640,6 +682,7 @@ public class ForgeOSException extends RuntimeException {
 ```java
 package forgeframework.hardware;
 
+import forgeframework.common.ForgeOSConstants;
 import forgeframework.kernel.Kernel;
 
 /**
@@ -667,7 +710,7 @@ public class HardwareTimer {
     private void runTimer() {
         while (running && kernel.isRunning()) {
             try {
-                Thread.sleep(1000); // 1초마다 1 Tick
+                Thread.sleep(ForgeOSConstants.TICK_INTERVAL_MS);
                 kernel.handleTimerInterrupt();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -680,7 +723,7 @@ public class HardwareTimer {
 
 ---
 
-# 16. kernel/Kernel.java
+# 17. kernel/Kernel.java
 
 **Path**
 `src/main/java/forgeframework/kernel/Kernel.java`
@@ -688,11 +731,16 @@ public class HardwareTimer {
 ```java
 package forgeframework.kernel;
 
+import forgeframework.common.ForgeOSConstants;
 import forgeframework.exception.ForgeOSException;
 import forgeframework.logger.EventLogger;
 import forgeframework.logger.LogLevel;
 import forgeframework.process.Process;
 import forgeframework.process.ProcessManager;
+import forgeframework.process.ProcessState;
+import forgeframework.process.scheduler.FcfsScheduler;
+import forgeframework.process.scheduler.RoundRobinScheduler;
+import forgeframework.process.scheduler.Scheduler;
 import forgeframework.syscall.SystemCallRequest;
 import forgeframework.syscall.SystemCallResult;
 import forgeframework.syscall.SystemCallType;
@@ -706,11 +754,6 @@ import java.time.Instant;
  * <p>Singleton 패턴으로 구현되어 시스템 전체에서 단 하나의 인스턴스만 존재하며,
  * Facade 패턴으로서 모든 서브시스템(Process, Memory, FileSystem 등)에 대한
  * 단일 접근 창구 역할을 한다.</p>
- *
- * <p>Phase 1에서는 서브시스템 매니저가 아직 존재하지 않으므로
- * 커널 자체 기능(HELP, SHUTDOWN, UPTIME)만 처리한다.
- * 이후 Phase에서 {@code registerProcessManager()} 형태의 확장 지점을 통해
- * Process/Memory/FileSystem Manager 등을 등록받아 위임하는 구조로 확장한다.</p>
  */
 public final class Kernel {
 
@@ -728,13 +771,6 @@ public final class Kernel {
         this.running = true;
     }
 
-    /**
-     * Kernel Singleton 인스턴스를 최초 1회 초기화한다.
-     * BootManager의 KERNEL_INIT 단계에서만 호출되어야 한다.
-     *
-     * @param logger 커널이 사용할 이벤트 로거
-     * @return 초기화된 Kernel 인스턴스
-     */
     public static synchronized Kernel initialize(EventLogger logger) {
         if (instance != null) {
             throw new ForgeOSException("Kernel은 이미 초기화되었습니다.");
@@ -743,12 +779,6 @@ public final class Kernel {
         return instance;
     }
 
-    /**
-     * 이미 초기화된 Kernel Singleton 인스턴스를 반환한다.
-     *
-     * @return Kernel 인스턴스
-     * @throws ForgeOSException 아직 초기화되지 않은 경우
-     */
     public static synchronized Kernel getInstance() {
         if (instance == null) {
             throw new ForgeOSException("Kernel이 아직 초기화되지 않았습니다.");
@@ -776,14 +806,6 @@ public final class Kernel {
         }
     }
 
-    /**
-     * 시스템 콜을 처리하는 유일한 진입점.
-     *
-     * <p>Shell/Command 계층은 반드시 이 메서드를 통해서만 커널 기능에 접근한다.</p>
-     *
-     * @param request 처리할 시스템 콜 요청
-     * @return 처리 결과
-     */
     public SystemCallResult handleSystemCall(SystemCallRequest request) {
         SystemCallType type = request.getType();
         logger.log(LogLevel.DEBUG, "System call received: " + type);
@@ -795,6 +817,7 @@ public final class Kernel {
             case PS -> handlePs();
             case EXEC -> handleExec(request.getArgs());
             case KILL -> handleKill(request.getArgs());
+            case SCHEDULER -> handleScheduler(request.getArgs());
         };
     }
 
@@ -820,13 +843,14 @@ public final class Kernel {
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%-5s | %-12s | %-10s | %s\n", "PID", "STATE", "CPU_TIME", "NAME"));
-        sb.append("-".repeat(50));
+        sb.append(String.format("%-5s | %-10s | %-8s | %-10s | %s\n", "PID", "STATE", "CPU_TIME", "BURST", "NAME"));
+        sb.append("-".repeat(55));
 
         for (Process p : processManager.getAllProcesses().values()) {
-            String stateIndicator = (p.getPcb().getState() == forgeframework.process.ProcessState.RUNNING) ? "*" : " ";
-            sb.append(String.format("\n%-5d | %-12s | %-10d | %s%s",
-                    p.getPcb().getPid(), p.getPcb().getState(), p.getPcb().getCpuTimeUsed(), p.getName(), stateIndicator));
+            String stateIndicator = (p.getPcb().getState() == ProcessState.RUNNING) ? "*" : " ";
+            sb.append(String.format("\n%-5d | %-10s | %-8d | %-10d | %s%s",
+                    p.getPcb().getPid(), p.getPcb().getState(), p.getPcb().getCpuTimeUsed(),
+                    p.getPcb().getBurstTime(), p.getName(), stateIndicator));
         }
         return SystemCallResult.success(sb.toString());
     }
@@ -836,10 +860,26 @@ public final class Kernel {
             return SystemCallResult.failure("ProcessManager가 로드되지 않았습니다.");
         }
         if (args.length == 0) {
-            return SystemCallResult.failure("사용법: exec <프로세스명>");
+            return SystemCallResult.failure("사용법: exec <프로세스명> [burstTime]");
         }
-        Process p = processManager.createProcess(args[0]);
-        return SystemCallResult.success("프로세스가 생성되었습니다. (PID: " + p.getPcb().getPid() + ")");
+
+        try {
+            String name = args[0];
+            long burstTime = (args.length > 1)
+                    ? Long.parseLong(args[1])
+                    : ForgeOSConstants.DEFAULT_BURST_TIME;
+
+            if (burstTime <= 0) {
+                return SystemCallResult.failure("burstTime은 1 이상이어야 합니다.");
+            }
+
+            Process p = processManager.createProcess(name, burstTime);
+            return SystemCallResult.success(
+                    "프로세스가 생성되었습니다. (PID: " + p.getPcb().getPid() + ", burstTime: " + burstTime + ")"
+            );
+        } catch (NumberFormatException e) {
+            return SystemCallResult.failure("burstTime은 숫자여야 합니다.");
+        }
     }
 
     private SystemCallResult handleKill(String[] args) {
@@ -862,6 +902,34 @@ public final class Kernel {
         }
     }
 
+    /**
+     * 현재 스케줄러를 조회하거나(인자 없음) 런타임에 교체한다(인자로 fcfs|rr 전달).
+     *
+     * @param args 비어있으면 조회, args[0]이 fcfs/rr이면 해당 알고리즘으로 교체
+     */
+    private SystemCallResult handleScheduler(String[] args) {
+        if (processManager == null) {
+            return SystemCallResult.failure("ProcessManager가 로드되지 않았습니다.");
+        }
+
+        if (args.length == 0) {
+            return SystemCallResult.success("현재 스케줄러: " + processManager.getSchedulerName());
+        }
+
+        Scheduler newScheduler = switch (args[0].toLowerCase()) {
+            case "fcfs" -> new FcfsScheduler();
+            case "rr", "roundrobin", "round-robin" -> new RoundRobinScheduler();
+            default -> null;
+        };
+
+        if (newScheduler == null) {
+            return SystemCallResult.failure("알 수 없는 스케줄링 알고리즘입니다: " + args[0] + " (fcfs|rr)");
+        }
+
+        processManager.setScheduler(newScheduler);
+        return SystemCallResult.success("스케줄러가 " + newScheduler.getName() + "(으)로 변경되었습니다.");
+    }
+
     private String formatDuration(Duration duration) {
         long hours = duration.toHours();
         long minutes = duration.toMinutesPart();
@@ -869,12 +937,6 @@ public final class Kernel {
         return String.format("%02d:%02d:%02d", hours, minutes, seconds);
     }
 
-    /**
-     * 커널이 현재 실행 중인지 여부를 반환한다.
-     * Shell의 REPL 루프 종료 조건으로 사용된다.
-     *
-     * @return 실행 중이면 true
-     */
     public boolean isRunning() {
         return running;
     }
@@ -883,7 +945,7 @@ public final class Kernel {
 
 ---
 
-# 17. logger/ConsoleLogListener.java
+# 18. logger/ConsoleLogListener.java
 
 **Path**
 `src/main/java/forgeframework/logger/ConsoleLogListener.java`
@@ -908,7 +970,7 @@ public class ConsoleLogListener implements LogListener {
 
 ---
 
-# 18. logger/EventLogger.java
+# 19. logger/EventLogger.java
 
 **Path**
 `src/main/java/forgeframework/logger/EventLogger.java`
@@ -919,42 +981,19 @@ package forgeframework.logger;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * ForgeOS 내 모든 이벤트를 기록하는 로거.
- *
- * <p>Observer 패턴의 Subject 역할을 수행하며,
- * 등록된 {@link LogListener}들에게 로그 발생을 통지한다.
- * Boot, Kernel, Shell 등 모든 계층이 공통으로 이 로거를 사용한다.</p>
- */
 public class EventLogger {
 
     private final List<LogListener> listeners = new ArrayList<>();
 
-    /**
-     * 로그 리스너를 등록한다.
-     *
-     * @param listener 등록할 리스너
-     */
     public void addListener(LogListener listener) {
         listeners.add(listener);
     }
 
-    /**
-     * 로그 리스너 등록을 해제한다.
-     *
-     * @param listener 해제할 리스너
-     */
     public void removeListener(LogListener listener) {
         listeners.remove(listener);
     }
 
-    /**
-     * 새로운 로그 이벤트를 기록하고 모든 리스너에게 통지한다.
-     *
-     * @param level   로그 심각도
-     * @param message 로그 메시지
-     */
-    public void log(LogLevel level, String message) {
+    public synchronized void log(LogLevel level, String message) {
         LogEntry entry = new LogEntry(level, message);
         notifyListeners(entry);
     }
@@ -969,7 +1008,7 @@ public class EventLogger {
 
 ---
 
-# 19. logger/LogEntry.java
+# 20. logger/LogEntry.java
 
 **Path**
 `src/main/java/forgeframework/logger/LogEntry.java`
@@ -1031,7 +1070,7 @@ public final class LogEntry {
 
 ---
 
-# 20. logger/LogLevel.java
+# 21. logger/LogLevel.java
 
 **Path**
 `src/main/java/forgeframework/logger/LogLevel.java`
@@ -1060,7 +1099,7 @@ public enum LogLevel {
 
 ---
 
-# 21. logger/LogListener.java
+# 22. logger/LogListener.java
 
 **Path**
 `src/main/java/forgeframework/logger/LogListener.java`
@@ -1087,7 +1126,7 @@ public interface LogListener {
 
 ---
 
-# 22. process/Process.java
+# 23. process/Process.java
 
 **Path**
 `src/main/java/forgeframework/process/Process.java`
@@ -1099,9 +1138,9 @@ public class Process {
     private final String name;
     private final ProcessControlBlock pcb;
 
-    public Process(int pid, String name) {
+    public Process(int pid, String name, long burstTime) {
         this.name = name;
-        this.pcb = new ProcessControlBlock(pid);
+        this.pcb = new ProcessControlBlock(pid, burstTime);
     }
 
     public String getName() { return name; }
@@ -1111,7 +1150,7 @@ public class Process {
 
 ---
 
-# 23. process/ProcessControlBlock.java
+# 24. process/ProcessControlBlock.java
 
 **Path**
 `src/main/java/forgeframework/process/ProcessControlBlock.java`
@@ -1119,28 +1158,76 @@ public class Process {
 ```java
 package forgeframework.process;
 
+/**
+ * Process Control Block.
+ *
+ * <p><b>[버그 수정]</b> 기존 구현에는 burstTime(총 필요 실행 시간) 개념이 없어서
+ * 프로세스가 CPU를 할당받으면 영원히 RUNNING 상태에 머물렀다. FCFS는 선점을
+ * 하지 않기 때문에, 이 경우 맨 처음 실행된 프로세스가 CPU를 절대 반납하지 않고
+ * 이후 생성된 모든 프로세스가 기아(starvation) 상태에 빠지는 치명적 버그로
+ * 이어졌다. burstTime을 추가하고, 누적 실행 시간이 burstTime에 도달하면
+ * 완료로 판단할 수 있도록 {@link #isBurstComplete()}를 제공한다.</p>
+ *
+ * <p><b>[버그 수정]</b> {@code state}와 {@code cpuTimeUsed}는 HardwareTimer의
+ * 백그라운드 스레드(쓰기)와 Shell의 메인 스레드(ps 명령 등, 읽기)가 동시에
+ * 접근한다. 두 필드 모두 {@code volatile}로 선언하지 않으면 자바 메모리 모델상
+ * 한 스레드의 변경이 다른 스레드에 즉시 보이지 않을 수 있다(가시성 문제).
+ * 쓰기는 여전히 ProcessManager의 synchronized 메서드 안에서만 일어나므로
+ * volatile만으로 가시성 문제는 충분히 해결된다.</p>
+ */
 public class ProcessControlBlock {
-    private final int pid;
-    private ProcessState state;
-    private long cpuTimeUsed;
 
-    public ProcessControlBlock(int pid) {
+    private final int pid;
+    private final long burstTime;
+
+    private volatile ProcessState state;
+    private volatile long cpuTimeUsed;
+
+    public ProcessControlBlock(int pid, long burstTime) {
         this.pid = pid;
+        this.burstTime = burstTime;
         this.state = ProcessState.NEW;
         this.cpuTimeUsed = 0;
     }
 
-    public int getPid() { return pid; }
-    public ProcessState getState() { return state; }
-    public void setState(ProcessState state) { this.state = state; }
-    public long getCpuTimeUsed() { return cpuTimeUsed; }
-    public void incrementCpuTime() { this.cpuTimeUsed++; }
+    public int getPid() {
+        return pid;
+    }
+
+    public long getBurstTime() {
+        return burstTime;
+    }
+
+    public ProcessState getState() {
+        return state;
+    }
+
+    public void setState(ProcessState state) {
+        this.state = state;
+    }
+
+    public long getCpuTimeUsed() {
+        return cpuTimeUsed;
+    }
+
+    public void incrementCpuTime() {
+        this.cpuTimeUsed++;
+    }
+
+    /**
+     * 누적 실행 시간이 burstTime에 도달했는지 여부.
+     *
+     * @return 프로세스가 필요한 만큼 다 실행되었으면 true
+     */
+    public boolean isBurstComplete() {
+        return cpuTimeUsed >= burstTime;
+    }
 }
 ```
 
 ---
 
-# 24. process/ProcessManager.java
+# 25. process/ProcessManager.java
 
 **Path**
 `src/main/java/forgeframework/process/ProcessManager.java`
@@ -1148,6 +1235,7 @@ public class ProcessControlBlock {
 ```java
 package forgeframework.process;
 
+import forgeframework.common.ForgeOSConstants;
 import forgeframework.logger.EventLogger;
 import forgeframework.logger.LogLevel;
 import forgeframework.process.scheduler.Scheduler;
@@ -1161,15 +1249,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class ProcessManager {
     private final EventLogger logger;
-    private final Scheduler scheduler;
+    private Scheduler scheduler;
 
     private final Map<Integer, Process> processTable = new LinkedHashMap<>();
     private final AtomicInteger pidGenerator = new AtomicInteger(1);
 
     private Process currentRunningProcess = null;
 
-    // 선점형 스케줄러용 타임 퀀텀 (3 Ticks)
-    private final int timeQuantum = 3;
+    // 선점형 스케줄러용 타임 퀀텀
+    private final int timeQuantum = ForgeOSConstants.DEFAULT_TIME_QUANTUM;
     private int quantumTick = 0;
 
     public ProcessManager(EventLogger logger, Scheduler scheduler) {
@@ -1178,16 +1266,60 @@ public class ProcessManager {
         logger.log(LogLevel.INFO, "ProcessManager initialized [Scheduler: " + scheduler.getName() + "]");
     }
 
-    public synchronized Process createProcess(String name) {
+    /**
+     * 새 프로세스를 생성한다.
+     *
+     * @param name      프로세스 이름
+     * @param burstTime 총 필요 실행 시간(tick). 이 시간만큼 CPU를 사용하면 자동으로 종료된다.
+     * @return 생성된 프로세스
+     */
+    public synchronized Process createProcess(String name, long burstTime) {
         int pid = pidGenerator.getAndIncrement();
-        Process newProcess = new Process(pid, name);
+        Process newProcess = new Process(pid, name, burstTime);
 
         processTable.put(pid, newProcess);
         newProcess.getPcb().setState(ProcessState.READY);
         scheduler.addProcess(newProcess);
 
-        logger.log(LogLevel.INFO, "Process created: [PID=" + pid + "] " + name);
+        logger.log(LogLevel.INFO,
+                "Process created: [PID=" + pid + "] " + name + " (burstTime=" + burstTime + ")");
         return newProcess;
+    }
+
+    /**
+     * burstTime을 생략하고 기본값으로 프로세스를 생성한다.
+     *
+     * @param name 프로세스 이름
+     * @return 생성된 프로세스
+     */
+    public synchronized Process createProcess(String name) {
+        return createProcess(name, ForgeOSConstants.DEFAULT_BURST_TIME);
+    }
+
+    /**
+     * 현재 적용된 스케줄러의 이름을 반환한다 (scheduler 명령의 조회용).
+     *
+     * @return 스케줄러 이름
+     */
+    public synchronized String getSchedulerName() {
+        return scheduler.getName();
+    }
+
+    /**
+     * 스케줄링 알고리즘을 런타임에 교체한다.
+     *
+     * <p>기존 스케줄러의 ready queue에 남아있던 프로세스는 그대로 잃어버리지 않도록
+     * 새 스케줄러로 옮겨준다. 현재 CPU를 사용 중인 프로세스는 교체와 무관하게
+     * 계속 실행되며, 다음 Context Switch부터 새 알고리즘이 적용된다.</p>
+     *
+     * @param newScheduler 새로 적용할 스케줄러
+     */
+    public synchronized void setScheduler(Scheduler newScheduler) {
+        while (!scheduler.isEmpty()) {
+            newScheduler.addProcess(scheduler.selectNextProcess());
+        }
+        this.scheduler = newScheduler;
+        logger.log(LogLevel.INFO, "Scheduler changed to: " + newScheduler.getName());
     }
 
     public synchronized boolean killProcess(int pid) {
@@ -1200,6 +1332,10 @@ public class ProcessManager {
 
         if (currentRunningProcess != null && currentRunningProcess.getPcb().getPid() == pid) {
             currentRunningProcess = null;
+            quantumTick = 0;
+            if (!scheduler.isEmpty()) {
+                contextSwitch();
+            }
         } else {
             scheduler.removeProcess(target);
         }
@@ -1214,21 +1350,48 @@ public class ProcessManager {
 
     /**
      * Kernel로부터 Timer Interrupt가 발생했을 때 호출된다.
+     *
+     * <p><b>[버그 수정]</b> 기존 코드는 {@code scheduler.isPreemptive()}가 false인 경우
+     * (FCFS) burst 완료 여부와 무관하게 절대 contextSwitch()를 호출하지 않아서,
+     * 최초 실행된 프로세스가 영원히 CPU를 독점하고 나머지 프로세스는 기아 상태에
+     * 빠지는 문제가 있었다. burst 완료 여부는 스케줄러의 선점 정책과 별개로
+     * 항상 먼저 확인하도록 순서를 바꿨다 — "일을 다 끝낸 프로세스는 선점형이든
+     * 아니든 CPU를 반납해야 한다"는 것은 스케줄링 알고리즘과 무관한 규칙이기 때문이다.</p>
      */
     public synchronized void handleTimerInterrupt() {
         if (currentRunningProcess != null) {
             currentRunningProcess.getPcb().incrementCpuTime();
             quantumTick++;
 
-            // 스케줄러가 선점형(Preemptive)일 때만 타임 퀀텀 검사 후 강제 교환
+            if (currentRunningProcess.getPcb().isBurstComplete()) {
+                completeCurrentProcess();
+                return;
+            }
+
             if (scheduler.isPreemptive() && quantumTick >= timeQuantum) {
                 contextSwitch();
             }
-        } else {
-            // 실행 중인 프로세스가 없으면 Ready Queue를 확인하여 스케줄링
-            if (!scheduler.isEmpty()) {
-                contextSwitch();
-            }
+        } else if (!scheduler.isEmpty()) {
+            contextSwitch();
+        }
+    }
+
+    /**
+     * 현재 실행 중인 프로세스가 burstTime을 모두 소진했을 때 호출된다.
+     * TERMINATED로 전이시키고, ready queue에 남은 프로세스가 있으면 즉시 다음
+     * 프로세스로 문맥을 교환한다.
+     */
+    private void completeCurrentProcess() {
+        Process finished = currentRunningProcess;
+        finished.getPcb().setState(ProcessState.TERMINATED);
+        logger.log(LogLevel.INFO,
+                "Process completed: [PID=" + finished.getPcb().getPid() + "] " + finished.getName());
+
+        currentRunningProcess = null;
+        quantumTick = 0;
+
+        if (!scheduler.isEmpty()) {
+            contextSwitch();
         }
     }
 
@@ -1259,7 +1422,7 @@ public class ProcessManager {
 
 ---
 
-# 25. process/ProcessState.java
+# 26. process/ProcessState.java
 
 **Path**
 `src/main/java/forgeframework/process/ProcessState.java`
@@ -1278,7 +1441,7 @@ public enum ProcessState {
 
 ---
 
-# 26. process/scheduler/FcfsScheduler.java
+# 27. process/scheduler/FcfsScheduler.java
 
 **Path**
 `src/main/java/forgeframework/process/scheduler/FcfsScheduler.java`
@@ -1334,7 +1497,7 @@ public class FcfsScheduler implements Scheduler {
 
 ---
 
-# 27. process/scheduler/RoundRobinScheduler.java
+# 28. process/scheduler/RoundRobinScheduler.java
 
 **Path**
 `src/main/java/forgeframework/process/scheduler/RoundRobinScheduler.java`
@@ -1390,7 +1553,7 @@ public class RoundRobinScheduler implements Scheduler {
 
 ---
 
-# 28. process/scheduler/Scheduler.java
+# 29. process/scheduler/Scheduler.java
 
 **Path**
 `src/main/java/forgeframework/process/scheduler/Scheduler.java`
@@ -1443,7 +1606,7 @@ public interface Scheduler {
 
 ---
 
-# 29. shell/ForgeShell.java
+# 30. shell/ForgeShell.java
 
 **Path**
 `src/main/java/forgeframework/shell/ForgeShell.java`
@@ -1459,21 +1622,13 @@ import forgeframework.command.UptimeCommand;
 import forgeframework.command.PsCommand;
 import forgeframework.command.ExecCommand;
 import forgeframework.command.KillCommand;
+import forgeframework.command.SchedulerCommand;
 import forgeframework.common.ForgeOSConstants;
 import forgeframework.kernel.Kernel;
 import forgeframework.syscall.SystemCallResult;
 
 import java.util.Scanner;
 
-/**
- * ForgeOS의 사용자 인터페이스인 CLI Shell.
- *
- * <p>사용자 입력을 받아 {@link CommandRegistry}를 통해 해당하는
- * {@link Command}를 찾아 실행한다.
- *
- * <p><b>중요:</b> ForgeShell은 절대로 Kernel의 서브시스템에 직접 접근하지 않는다.
- * 모든 기능 실행은 반드시 Command → Kernel.handleSystemCall() 경로를 거친다.</p>
- */
 public class ForgeShell {
 
     private final Kernel kernel;
@@ -1494,16 +1649,12 @@ public class ForgeShell {
         registry.register(new ShutdownCommand());
         registry.register(new UptimeCommand());
 
-        // Phase 2: 프로세스 관리 명령어 등록
         registry.register(new PsCommand());
         registry.register(new ExecCommand());
         registry.register(new KillCommand());
+        registry.register(new SchedulerCommand());
     }
 
-    /**
-     * Shell의 REPL(Read-Eval-Print Loop)을 실행한다.
-     * Kernel이 실행 중(running) 상태인 동안 계속 반복된다.
-     */
     public void run() {
         System.out.println(ForgeOSConstants.OS_NAME + " Shell에 오신 것을 환영합니다. 'help'를 입력해보세요.");
 
@@ -1542,7 +1693,7 @@ public class ForgeShell {
 
 ---
 
-# 30. shell/ShellPrompt.java
+# 31. shell/ShellPrompt.java
 
 **Path**
 `src/main/java/forgeframework/shell/ShellPrompt.java`
@@ -1573,7 +1724,7 @@ public class ShellPrompt {
 
 ---
 
-# 31. syscall/SystemCallRequest.java
+# 32. syscall/SystemCallRequest.java
 
 **Path**
 `src/main/java/forgeframework/syscall/SystemCallRequest.java`
@@ -1613,7 +1764,7 @@ public final class SystemCallRequest {
 
 ---
 
-# 32. syscall/SystemCallResult.java
+# 33. syscall/SystemCallResult.java
 
 **Path**
 `src/main/java/forgeframework/syscall/SystemCallResult.java`
@@ -1667,7 +1818,7 @@ public final class SystemCallResult {
 
 ---
 
-# 33. syscall/SystemCallType.java
+# 34. syscall/SystemCallType.java
 
 **Path**
 `src/main/java/forgeframework/syscall/SystemCallType.java`
@@ -1675,31 +1826,14 @@ public final class SystemCallResult {
 ```java
 package forgeframework.syscall;
 
-/**
- * Kernel이 처리할 수 있는 시스템 콜의 종류.
- * Phase가 진행됨에 따라 Process, Memory, FileSystem 등
- * 각 서브시스템에 대응하는 항목이 계속 추가될 예정이다.
- * Phase 1에서는 커널 자체 기능(HELP, SHUTDOWN, UPTIME)만 정의한다.
- */
 public enum SystemCallType {
-
-    /** 사용 가능한 명령어 목록 조회. */
     HELP,
-
-    /** 시스템 종료. */
     SHUTDOWN,
-
-    /** 커널 가동 시간 조회. */
     UPTIME,
-
-    /** 현재 실행 및 대기 중인 프로세스 상태 목록 조회. */
     PS,
-
-    /** 새로운 프로세스 생성 요청. */
     EXEC,
-
-    /** 특정 프로세스의 강제 종료 요청 */
-    KILL
+    KILL,
+    SCHEDULER
 }
 ```
 
