@@ -1,5 +1,6 @@
 package forgeframework.hardware;
 
+import forgeframework.common.ForgeOSConstants;
 import forgeframework.kernel.Kernel;
 
 /**
@@ -27,7 +28,7 @@ public class HardwareTimer {
     private void runTimer() {
         while (running && kernel.isRunning()) {
             try {
-                Thread.sleep(1000); // 1초마다 1 Tick
+                Thread.sleep(ForgeOSConstants.TICK_INTERVAL_MS);
                 kernel.handleTimerInterrupt();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

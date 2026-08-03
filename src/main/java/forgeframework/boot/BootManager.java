@@ -6,7 +6,6 @@ import forgeframework.kernel.Kernel;
 import forgeframework.logger.EventLogger;
 import forgeframework.logger.LogLevel;
 import forgeframework.process.ProcessManager;
-import forgeframework.process.scheduler.FcfsScheduler;
 import forgeframework.process.scheduler.RoundRobinScheduler;
 import forgeframework.process.scheduler.Scheduler;
 
@@ -38,9 +37,8 @@ public class BootManager {
             kernel = Kernel.initialize(logger);
         } else if (stage == BootStage.SUBSYSTEM_INIT) {
 
-            // 원하는 스케줄러로 변경 가능 (전략 패턴 적용 추후엔 scheduler 명령어로 원하는 스케줄러 선택 가능)
+            // 원하는 스케줄러로 변경 가능 (전략 패턴)
             Scheduler activeScheduler = new RoundRobinScheduler();
-            // Scheduler activeScheduler = new FcfsScheduler();
 
             ProcessManager processManager = new ProcessManager(logger, activeScheduler);
             kernel.registerProcessManager(processManager);
