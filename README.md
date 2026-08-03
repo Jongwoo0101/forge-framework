@@ -150,20 +150,20 @@ Kernel은 모든 Manager의 유일한 관리자(Single Entry Point) 역할을 �
 
 ---
 
-## 🚧 Phase 2 — Process Management (현재 진행 중)
+## ✅ Phase 2 — Process Management (완료)
 
 ### Process Manager
 
-- Process 생성
-- Process 종료
+- Process 생성 (burstTime 지정 가능)
+- Process 종료 (kill, burstTime 소진 시 자동 종료)
 - Process State 관리
-- Context Switch
+- Context Switch (Timer Interrupt 기반)
 
 ### Process
 
-- PCB
-- Process
-- Process State
+- PCB (pid, burstTime, 누적 CPU 사용 시간, State)
+- Process (이름 + PCB 래핑)
+- Process State (NEW / READY / RUNNING / WAITING / TERMINATED)
 
 ### Scheduler
 
@@ -171,6 +171,7 @@ Kernel은 모든 Manager의 유일한 관리자(Single Entry Point) 역할을 �
 
 - FCFS
 - Round Robin (Time Quantum = 3 Tick)
+- **`scheduler` 명령어로 런타임 조회/교체 가능** — 재컴파일 없이 알고리즘 전환 시, 대기 중이던 프로세스는 새 스케줄러로 안전하게 이관됨
 
 추후 구현
 
@@ -183,7 +184,8 @@ Kernel은 모든 Manager의 유일한 관리자(Single Entry Point) 역할을 �
 
 ### Hardware Timer
 
-- Background Thread 기반 Timer Interrupt Generator
+- Background Thread 기반 Timer Interrupt Generator (1 Tick = 1초)
+- Timer Interrupt마다 Kernel → ProcessManager로 전달되어 Context Switch/burst 완료 판정에 사용됨
 
 ---
 
@@ -257,16 +259,17 @@ Kernel은 모든 Manager의 유일한 관리자(Single Entry Point) 역할을 �
 
 ```text
 forgeframework
-├── boot          # BootManager, BootStage
-├── command       # Command Pattern
-├── common        # Global Constants
-├── exception     # Global Exceptions
-├── hardware      # Virtual Hardware
-├── kernel        # Kernel (Singleton + Facade)
-├── logger        # Observer-based Logger
-├── process       # PCB, Process, Scheduler
-├── shell         # ForgeShell
-└── syscall       # System Call Layer
+├── boot                    # BootManager, BootStage
+├── command                 # Command Pattern
+├── common                  # Global Constants
+├── exception                # Global Exceptions
+├── hardware                 # Virtual Hardware (HardwareTimer)
+├── kernel                   # Kernel (Singleton + Facade)
+├── logger                   # Observer-based Logger
+├── process                  # PCB, Process, ProcessManager, ProcessState
+│   └── scheduler             # Scheduler(Strategy), FcfsScheduler, RoundRobinScheduler
+├── shell                    # ForgeShell
+└── syscall                  # System Call Layer
 ```
 
 Phase가 진행됨에 따라 아래 패키지가 추가될 예정입니다.
@@ -287,15 +290,15 @@ deadlock
 |--------|------|
 | help | 사용 가능한 명령어 출력 |
 | uptime | 커널 가동 시간 출력 |
-| ps | 프로세스 목록 출력 |
-| exec \<name> | 새로운 프로세스 생성 |
+| ps | 프로세스 목록 및 상태 출력 (PID/STATE/CPU_TIME/BURST/NAME) |
+| exec \<name> [burstTime] | 새로운 프로세스 생성. burstTime 생략 시 기본값 적용 |
 | kill \<pid> | 프로세스 종료 |
+| scheduler [fcfs\|rr] | 현재 스케줄러 조회, 또는 런타임에 알고리즘 교체 |
 | shutdown | 시스템 종료 |
 
 향후 추가 예정
 
 - fork
-- scheduler
 - malloc
 - free
 - meminfo

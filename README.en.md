@@ -171,20 +171,20 @@ Implements the operating system boot sequence.
 
 ---
 
-## 🚧 Phase 2 — Process Management (Current)
+## ✅ Phase 2 — Process Management (Completed)
 
 ### Process Manager
 
-- Process Creation
-- Process Termination
-- Process State Management
-- Context Switching
+- Process creation (with configurable burst time)
+- Process termination (manual `kill`, or automatic once burst time is exhausted)
+- Process state management
+- Context switching (driven by Timer Interrupt)
 
 ### Process
 
-- PCB (Process Control Block)
-- Process
-- Process States
+- PCB — pid, burst time, accumulated CPU time, state
+- Process — wraps a PCB with a human-readable name
+- Process States — NEW / READY / RUNNING / WAITING / TERMINATED
 
 ### Scheduler
 
@@ -192,6 +192,7 @@ Currently implemented
 
 - FCFS
 - Round Robin (Time Quantum = 3 Ticks)
+- **Runtime inspection/switching via the `scheduler` command** — algorithms can be swapped without recompiling; any processes still waiting in the old scheduler's queue are safely migrated to the new one
 
 Planned
 
@@ -204,7 +205,8 @@ Planned
 
 ### Hardware Timer
 
-- Background thread-based virtual timer interrupt generator
+- Background thread-based virtual timer interrupt generator (1 tick = 1 second)
+- Each tick is delivered from Kernel to ProcessManager and drives context switching and burst-completion detection
 
 ---
 
@@ -279,16 +281,17 @@ Planned shell commands
 
 ```text
 forgeframework
-├── boot          # BootManager, BootStage
-├── command       # Command Pattern
-├── common        # Global Constants
-├── exception     # Global Exceptions
-├── hardware      # Virtual Hardware
-├── kernel        # Kernel (Singleton + Facade)
-├── logger        # Observer-based Logger
-├── process       # PCB, Process, Scheduler
-├── shell         # ForgeShell
-└── syscall       # System Call Layer
+├── boot                    # BootManager, BootStage
+├── command                 # Command Pattern
+├── common                  # Global Constants
+├── exception                # Global Exceptions
+├── hardware                 # Virtual Hardware (HardwareTimer)
+├── kernel                   # Kernel (Singleton + Facade)
+├── logger                   # Observer-based Logger
+├── process                  # PCB, Process, ProcessManager, ProcessState
+│   └── scheduler             # Scheduler (Strategy), FcfsScheduler, RoundRobinScheduler
+├── shell                    # ForgeShell
+└── syscall                  # System Call Layer
 ```
 
 Additional packages planned in future phases:
@@ -309,15 +312,15 @@ deadlock
 |----------|-------------|
 | help | Display available commands |
 | uptime | Display kernel uptime |
-| ps | Show running and waiting processes |
-| exec <name> | Create a new process |
-| kill <pid> | Terminate a process |
+| ps | Show process list and state (PID/STATE/CPU_TIME/BURST/NAME) |
+| exec \<name> [burstTime] | Create a new process; burstTime falls back to a default if omitted |
+| kill \<pid> | Terminate a process |
+| scheduler [fcfs\|rr] | Inspect the current scheduler, or switch algorithms at runtime |
 | shutdown | Shut down the simulator |
 
 Planned commands
 
 - fork
-- scheduler
 - malloc
 - free
 - meminfo
