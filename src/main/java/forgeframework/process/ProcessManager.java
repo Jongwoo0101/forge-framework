@@ -8,6 +8,7 @@ import forgeframework.process.scheduler.Scheduler;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntConsumer;
 
 /**
  * 프로세스의 생성, 상태 전이, 문맥 교환(Context Switch)을 관리하는 매니저.
@@ -21,6 +22,15 @@ public class ProcessManager {
 
     private Process currentRunningProcess = null;
 
+    /**
+     * 프로세스가 종료(kill 또는 burst 완료로 인한 자연 종료)될 때 통지받는 리스너.
+     * MemoryManager가 프로세스 종료 시 힙/페이지 테이블/TLB 항목을 회수할 수 있도록
+     * BootManager가 연결해준다. ProcessManager는 MemoryManager의 존재 자체를 몰라도
+     * 되도록(패키지 의존 방향을 process → memory로 만들지 않기 위해) 이런 콜백 형태로
+     * 분리했다.
+     */
+    private IntConsumer terminationListener = pid -> { };
+
     // 선점형 스케줄러용 타임 퀀텀
     private final int timeQuantum = ForgeOSConstants.DEFAULT_TIME_QUANTUM;
     private int quantumTick = 0;
@@ -29,6 +39,15 @@ public class ProcessManager {
         this.logger = logger;
         this.scheduler = scheduler;
         logger.log(LogLevel.INFO, "ProcessManager initialized [Scheduler: " + scheduler.getName() + "]");
+    }
+
+    /**
+     * 프로세스 종료 시 통지받을 리스너를 등록한다.
+     *
+     * @param listener 종료된 프로세스의 pid를 전달받을 콜백. null이면 아무 동작도 하지 않는 no-op으로 대체된다.
+     */
+    public void setTerminationListener(IntConsumer listener) {
+        this.terminationListener = (listener != null) ? listener : (pid -> { });
     }
 
     /**
@@ -43,12 +62,19 @@ public class ProcessManager {
         Process newProcess = new Process(pid, name, burstTime);
 
         processTable.put(pid, newProcess);
-        newProcess.getPcb().setState(ProcessState.READY);
-        scheduler.addProcess(newProcess);
+        newProcess.getPcb().setState(ProcessState.NEW);
+        // 이 아래에서 addProcess 호출 하면 x. 메모리 할당 등 준비가 덜 끝난 new 상태이기 때문
+        // scheduler.addProcess(newProcess);
 
         logger.log(LogLevel.INFO,
                 "Process created: [PID=" + pid + "] " + name + " (burstTime=" + burstTime + ")");
         return newProcess;
+    }
+
+    public synchronized void readyProcess(int pid) {
+        Process p = processTable.get(pid);
+        p.getPcb().setState(ProcessState.READY);
+        scheduler.addProcess(p);
     }
 
     /**
@@ -106,6 +132,7 @@ public class ProcessManager {
         }
 
         logger.log(LogLevel.WARN, "Process killed: [PID=" + pid + "]");
+        terminationListener.accept(pid);
         return true;
     }
 
@@ -151,6 +178,7 @@ public class ProcessManager {
         finished.getPcb().setState(ProcessState.TERMINATED);
         logger.log(LogLevel.INFO,
                 "Process completed: [PID=" + finished.getPcb().getPid() + "] " + finished.getName());
+        terminationListener.accept(finished.getPcb().getPid());
 
         currentRunningProcess = null;
         quantumTick = 0;
