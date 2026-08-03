@@ -98,6 +98,10 @@ public final class Main {
         shell.run();
     }
 
+    /**
+     * 실행 환경의 로케일 설정과 무관하게 한글 등이 깨지지 않도록
+     * 표준 출력/에러 스트림을 UTF-8로 강제한다.
+     */
     private static void forceUtf8Console() {
         System.setOut(new PrintStream(System.out, true, StandardCharsets.UTF_8));
         System.setErr(new PrintStream(System.err, true, StandardCharsets.UTF_8));
@@ -204,11 +208,27 @@ public class BootManager {
 ```java
 package forgeframework.boot;
 
+/**
+ * ForgeOS 부팅 과정의 각 단계를 나타내는 열거형.
+ *
+ * <p>{@link BootManager}는 이 단계를 순서대로 진행하며,
+ * 각 단계마다 설명 메시지를 로그로 남긴다.</p>
+ */
 public enum BootStage {
+
+    /** 하드웨어(가상) 점검 단계. */
     HARDWARE_CHECK("하드웨어 점검 중..."),
+
+    /** 로거 초기화 단계. */
     LOGGER_INIT("이벤트 로거 초기화 중..."),
+
+    /** 커널 초기화 단계. */
     KERNEL_INIT("커널 초기화 중..."),
+
+    /** 서브시스템 초기화 단계. */
     SUBSYSTEM_INIT("서브시스템 초기화 중..."),
+
+    /** 쉘 준비 완료 단계. */
     SHELL_READY("ForgeShell 준비 완료");
 
     private final String description;
@@ -236,9 +256,35 @@ package forgeframework.command;
 import forgeframework.kernel.Kernel;
 import forgeframework.syscall.SystemCallResult;
 
+/**
+ * Shell에서 실행 가능한 명령어를 표현하는 인터페이스 (Command 패턴).
+ *
+ * <p>모든 구현체는 반드시 {@link Kernel#handleSystemCall}을 통해서만
+ * 실제 기능을 수행해야 하며, 커널 서브시스템에 직접 접근해서는 안 된다.</p>
+ */
 public interface Command {
+
+    /**
+     * 명령어 이름 (Shell에 입력하는 문자열).
+     *
+     * @return 명령어 이름
+     */
     String name();
+
+    /**
+     * help 명령에서 보여줄 한 줄 설명.
+     *
+     * @return 명령어 설명
+     */
     String description();
+
+    /**
+     * 명령어를 실행한다.
+     *
+     * @param kernel 시스템 콜을 전달할 Kernel
+     * @param args   명령줄 인자 (명령어 이름 제외)
+     * @return 실행 결과
+     */
     SystemCallResult execute(Kernel kernel, String[] args);
 }
 ```
@@ -257,18 +303,40 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * 사용 가능한 {@link Command}들을 이름으로 조회할 수 있도록 관리하는 레지스트리.
+ *
+ * <p>등록 순서를 유지하기 위해 {@link LinkedHashMap}을 사용하며,
+ * 등록되지 않은 이름으로 조회 시 {@link UnknownCommand}(Null Object)를 반환한다.</p>
+ */
 public class CommandRegistry {
 
     private final Map<String, Command> commands = new LinkedHashMap<>();
 
+    /**
+     * 명령어를 레지스트리에 등록한다.
+     *
+     * @param command 등록할 명령어
+     */
     public void register(Command command) {
         commands.put(command.name(), command);
     }
 
+    /**
+     * 이름으로 명령어를 조회한다.
+     *
+     * @param name 조회할 명령어 이름
+     * @return 등록된 명령어, 없으면 {@link UnknownCommand}
+     */
     public Command resolve(String name) {
         return commands.getOrDefault(name, new UnknownCommand(name));
     }
 
+    /**
+     * 등록된 모든 명령어를 반환한다. help 명령에서 사용된다.
+     *
+     * @return 등록된 명령어 컬렉션 (등록 순서 유지)
+     */
     public Collection<Command> getAll() {
         return commands.values();
     }
@@ -347,6 +415,13 @@ import forgeframework.syscall.SystemCallRequest;
 import forgeframework.syscall.SystemCallResult;
 import forgeframework.syscall.SystemCallType;
 
+/**
+ * 등록된 모든 명령어의 목록과 설명을 출력하는 명령어.
+ *
+ * <p>명령어 목록 자체는 Shell 계층의 관심사({@link CommandRegistry})이므로
+ * 여기서 직접 조합하되, 이벤트 기록을 위해 {@link Kernel#handleSystemCall}은
+ * 반드시 거친다 (Shell → Kernel 직접 접근 금지 원칙 준수).</p>
+ */
 public final class HelpCommand implements Command {
 
     private final CommandRegistry registry;
@@ -577,6 +652,9 @@ import forgeframework.syscall.SystemCallRequest;
 import forgeframework.syscall.SystemCallResult;
 import forgeframework.syscall.SystemCallType;
 
+/**
+ * 시스템을 종료하는 명령어.
+ */
 public final class ShutdownCommand implements Command {
 
     @Override
@@ -637,6 +715,12 @@ package forgeframework.command;
 import forgeframework.kernel.Kernel;
 import forgeframework.syscall.SystemCallResult;
 
+/**
+ * 등록되지 않은 명령어가 입력되었을 때 반환되는 Null Object.
+ *
+ * <p>{@link CommandRegistry#resolve(String)}에서 null 대신 이 객체를 반환함으로써
+ * 호출부의 null 체크 분기를 제거한다.</p>
+ */
 public final class UnknownCommand implements Command {
 
     private final String inputName;
@@ -679,6 +763,9 @@ import forgeframework.syscall.SystemCallRequest;
 import forgeframework.syscall.SystemCallResult;
 import forgeframework.syscall.SystemCallType;
 
+/**
+ * 커널의 가동 시간을 조회하는 명령어.
+ */
 public final class UptimeCommand implements Command {
 
     @Override
@@ -729,7 +816,7 @@ public final class ForgeOSConstants {
     public static final long BOOT_STAGE_DELAY_MS = 150L;
 
     /** 명령어 파싱 시 사용하는 구분자. */
-    public static final String COMMAND_DELIMITER = " ";
+    public static final String COMMAND_DELIMITER = "\\s+";
 
     /** exec 시 burstTime 인자를 생략했을 때 적용되는 기본 실행 시간(tick). */
     public static final long DEFAULT_BURST_TIME = 5L;
@@ -765,6 +852,12 @@ public final class ForgeOSConstants {
 ```java
 package forgeframework.exception;
 
+/**
+ * ForgeOS 내부에서 발생하는 모든 예외의 최상위 클래스.
+ *
+ * <p>커널, 부트 매니저, 서브시스템 등에서 발생하는 예외는
+ * 모두 이 예외를 상속하여 일관된 예외 처리 체계를 유지한다.</p>
+ */
 public class ForgeOSException extends RuntimeException {
 
     public ForgeOSException(String message) {
@@ -996,10 +1089,12 @@ public final class Kernel {
                 return SystemCallResult.failure("burstTime은 1 이상이어야 합니다.");
             }
 
-            Process p = processManager.createProcess(name, burstTime);
+            Process p = processManager.createProcess(name, burstTime); // 1. 프로세스 생성 및 ReadyQueue 등록
             if (memoryManager != null) {
-                memoryManager.registerProcess(p.getPcb().getPid());
+                memoryManager.registerProcess(p.getPcb().getPid()); // 2, 메모리 공간 (Heap, PageTable) 초기화 / 메모리 자원 완전 할당
             }
+            processManager.readyProcess(p.getPcb().getPid()); // 비로소 스케줄러에 진입
+
             return SystemCallResult.success(
                     "프로세스가 생성되었습니다. (PID: " + p.getPcb().getPid() + ", burstTime: " + burstTime + ")"
             );
@@ -1168,6 +1263,12 @@ public final class Kernel {
 ```java
 package forgeframework.logger;
 
+/**
+ * 로그 이벤트를 표준 출력(콘솔)에 출력하는 기본 {@link LogListener} 구현체.
+ *
+ * <p>추후 파일 저장, 원격 전송 등 다른 형태의 리스너를 추가하더라도
+ * {@link EventLogger}의 로직은 변경할 필요가 없다 (OCP 준수).</p>
+ */
 public class ConsoleLogListener implements LogListener {
 
     @Override
@@ -1228,6 +1329,12 @@ package forgeframework.logger;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * 하나의 로그 이벤트를 표현하는 불변 데이터 클래스.
+ *
+ * <p>발생 시각, 로그 레벨, 메시지를 포함하며
+ * {@link EventLogger}가 생성하여 등록된 {@link LogListener}들에게 전달한다.</p>
+ */
 public final class LogEntry {
 
     private static final DateTimeFormatter TIMESTAMP_FORMAT =
@@ -1255,6 +1362,11 @@ public final class LogEntry {
         return message;
     }
 
+    /**
+     * 콘솔 출력 등에 사용할 형식화된 문자열을 반환한다.
+     *
+     * @return "[HH:mm:ss.SSS] [LEVEL] message" 형태의 문자열
+     */
     public String toFormattedString() {
         return String.format(
                 "[%s] [%s] %s",
@@ -1276,10 +1388,21 @@ public final class LogEntry {
 ```java
 package forgeframework.logger;
 
+/**
+ * 로그 이벤트의 심각도 수준을 나타내는 열거형.
+ */
 public enum LogLevel {
+
+    /** 일반적인 정보성 로그. */
     INFO,
+
+    /** 경고성 로그. 즉시 문제는 아니지만 주의가 필요함. */
     WARN,
+
+    /** 오류 로그. 기능 수행에 실패했음을 의미. */
     ERROR,
+
+    /** 디버깅 목적의 상세 로그. */
     DEBUG
 }
 ```
@@ -1294,7 +1417,19 @@ public enum LogLevel {
 ```java
 package forgeframework.logger;
 
+/**
+ * 로그 이벤트를 수신하는 Observer 인터페이스.
+ *
+ * <p>{@link EventLogger}(Subject)에 등록되면
+ * 새로운 로그가 발생할 때마다 {@link #onLogEvent(LogEntry)}가 호출된다.</p>
+ */
 public interface LogListener {
+
+    /**
+     * 새로운 로그 이벤트가 발생했을 때 호출된다.
+     *
+     * @param entry 발생한 로그 이벤트
+     */
     void onLogEvent(LogEntry entry);
 }
 ```
@@ -1368,7 +1503,6 @@ import java.util.List;
 
 /**
  * 프로세스 하나의 힙 영역을 관리하는 free-list 기반 first-fit 할당기.
- *
  * <p>실제 sbrk/brk처럼, 필요한 만큼만 커지고 free()해도 곧바로 OS에 반납하지는
  * 않는다(내부적으로 free 블록으로 남아 재사용을 기다린다). 물리 프레임/페이지
  * 할당 같은 저수준 작업은 이 클래스가 알지 못한다 — {@link MemoryManager}가
@@ -1401,7 +1535,6 @@ public final class Heap {
      * 힙의 총 용량을 늘린다. 늘어난 구간은 하나의 자유 블록으로 추가된다.
      * 물리 프레임을 실제로 확보하는 것은 {@link MemoryManager}의 책임이며,
      * 이 메서드는 순수하게 "장부 상의 용량"만 늘린다.
-     *
      * @param additionalBytes 추가할 바이트 수
      */
     public void grow(long additionalBytes) {
@@ -1411,6 +1544,20 @@ public final class Heap {
         blocks.add(new HeapBlock(capacity, additionalBytes, true));
         capacity += additionalBytes;
         mergeAdjacentFreeBlocks();
+    }
+
+    /**
+     * Heap 객체에서 마지막 블록이 Free 상태라면 그 크기를 반환하는 메서드를 만들고, {@link MemoryManager}는
+     * 그 크기를 뺀 순수하게 부족한 크기만큼만 페이지를 요청해야함
+     */
+    public long getEndFreeSize() {
+        if (!blocks.isEmpty()) {
+            HeapBlock last = blocks.getLast();
+            if (last.isFree()) {
+                return last.getSize();
+            }
+        }
+        return 0;
     }
 
     /**
@@ -1662,7 +1809,10 @@ public final class MemoryManager {
 
     private void growHeapForAllocation(int pid, Heap heap, long size) {
         int pageSize = physicalMemory.getFrameSize();
-        long newCapacity = heap.getCapacity() + size;
+        long endFree = heap.getEndFreeSize();
+        long actualNeeded = Math.max(0, size - endFree);
+
+        long newCapacity = heap.getCapacity() + actualNeeded;
         int pagesNeeded = (int) (ceilDiv(newCapacity, pageSize) - ceilDiv(heap.getCapacity(), pageSize));
 
         PageTable pageTable = pageTables.get(pid);
@@ -2220,12 +2370,19 @@ public class ProcessManager {
         Process newProcess = new Process(pid, name, burstTime);
 
         processTable.put(pid, newProcess);
-        newProcess.getPcb().setState(ProcessState.READY);
-        scheduler.addProcess(newProcess);
+        newProcess.getPcb().setState(ProcessState.NEW);
+        // 이 아래에서 addProcess 호출 하면 x. 메모리 할당 등 준비가 덜 끝난 new 상태이기 때문
+        // scheduler.addProcess(newProcess);
 
         logger.log(LogLevel.INFO,
                 "Process created: [PID=" + pid + "] " + name + " (burstTime=" + burstTime + ")");
         return newProcess;
+    }
+
+    public synchronized void readyProcess(int pid) {
+        Process p = processTable.get(pid);
+        p.getPcb().setState(ProcessState.READY);
+        scheduler.addProcess(p);
     }
 
     /**
@@ -2397,6 +2554,12 @@ import forgeframework.process.Process;
 import java.util.LinkedList;
 import java.util.Queue;
 
+/**
+ * First Come, First Served (FCFS) 스케줄러 구현체.
+ *
+ * <p>먼저 도착한 프로세스를 먼저 실행하며, 비선점형(Non-preemptive)으로 동작한다.
+ * 프로세스가 스스로 종료되거나 I/O를 요청하기 전까지 CPU를 반환하지 않는다.</p>
+ */
 public class FcfsScheduler implements Scheduler {
 
     private final Queue<Process> readyQueue = new LinkedList<>();
@@ -2428,7 +2591,7 @@ public class FcfsScheduler implements Scheduler {
 
     @Override
     public boolean isPreemptive() {
-        return false;
+        return false; // 비선점형 스케줄러
     }
 }
 ```
@@ -2447,6 +2610,12 @@ import forgeframework.process.Process;
 import java.util.LinkedList;
 import java.util.Queue;
 
+/**
+ * Round Robin (RR) 스케줄러 구현체.
+ *
+ * <p>FIFO 큐를 사용하며, 선점형(Preemptive)으로 동작한다.
+ * 타임 퀀텀 만료 시 ProcessManager에 의해 다시 큐로 돌아온다.</p>
+ */
 public class RoundRobinScheduler implements Scheduler {
 
     private final Queue<Process> readyQueue = new LinkedList<>();
@@ -2478,7 +2647,7 @@ public class RoundRobinScheduler implements Scheduler {
 
     @Override
     public boolean isPreemptive() {
-        return true;
+        return true; // 선점형 스케줄러
     }
 }
 ```
@@ -2495,12 +2664,43 @@ package forgeframework.process.scheduler;
 
 import forgeframework.process.Process;
 
+/**
+ * CPU 스케줄링 알고리즘의 전략(Strategy) 인터페이스.
+ */
 public interface Scheduler {
+
+    /**
+     * 스케줄러의 이름을 반환한다. (예: "FCFS", "Round Robin")
+     */
     String getName();
+
+    /**
+     * 새로운 프로세스를 Ready Queue에 추가한다.
+     * @param process 추가할 프로세스
+     */
     void addProcess(Process process);
+
+    /**
+     * 다음으로 실행할 프로세스를 선택하여 반환한다.
+     * @return 실행할 프로세스 (없으면 null)
+     */
     Process selectNextProcess();
+
+    /**
+     * 프로세스를 큐에서 제거한다. (종료 등)
+     * @param process 제거할 프로세스
+     */
     void removeProcess(Process process);
+
+    /**
+     * 현재 스케줄링 큐가 비어있는지 확인한다.
+     */
     boolean isEmpty();
+
+    /**
+     * 해당 스케줄러가 선점형(Preemptive)인지 여부를 반환한다.
+     * @return 선점형이면 true, 비선점형이면 false
+     */
     boolean isPreemptive();
 }
 ```
@@ -2612,7 +2812,19 @@ package forgeframework.shell;
 
 import forgeframework.common.ForgeOSConstants;
 
+/**
+ * ForgeShell의 프롬프트 문자열을 관리하는 클래스.
+ *
+ * <p>추후 현재 작업 디렉터리, 사용자 이름 등을 반영한
+ * 동적인 프롬프트로 확장할 수 있도록 별도 클래스로 분리했다.</p>
+ */
 public class ShellPrompt {
+
+    /**
+     * 현재 프롬프트 문자열을 반환한다.
+     *
+     * @return 프롬프트 문자열
+     */
     public String render() {
         return ForgeOSConstants.SHELL_PROMPT;
     }
@@ -2629,6 +2841,12 @@ public class ShellPrompt {
 ```java
 package forgeframework.syscall;
 
+/**
+ * Shell/Command 계층이 Kernel에게 전달하는 시스템 콜 요청.
+ *
+ * <p>Shell은 절대로 Kernel의 서브시스템에 직접 접근하지 않으며,
+ * 반드시 이 요청 객체를 통해서만 {@code Kernel.handleSystemCall()}을 호출한다.</p>
+ */
 public final class SystemCallRequest {
 
     private final SystemCallType type;
@@ -2663,6 +2881,12 @@ public final class SystemCallRequest {
 ```java
 package forgeframework.syscall;
 
+/**
+ * Kernel이 시스템 콜 처리 후 반환하는 결과.
+ *
+ * <p>성공 여부, 사용자에게 보여줄 메시지, 부가 데이터를 포함한다.
+ * 정적 팩토리 메서드({@link #success}, {@link #failure})를 통해서만 생성한다.</p>
+ */
 public final class SystemCallResult {
 
     private final boolean success;
