@@ -5,6 +5,7 @@ import forgeframework.hardware.HardwareTimer;
 import forgeframework.kernel.Kernel;
 import forgeframework.logger.EventLogger;
 import forgeframework.logger.LogLevel;
+import forgeframework.memory.MemoryManager;
 import forgeframework.process.ProcessManager;
 import forgeframework.process.scheduler.RoundRobinScheduler;
 import forgeframework.process.scheduler.Scheduler;
@@ -41,7 +42,18 @@ public class BootManager {
             Scheduler activeScheduler = new RoundRobinScheduler();
 
             ProcessManager processManager = new ProcessManager(logger, activeScheduler);
+            MemoryManager memoryManager = new MemoryManager(
+                    logger,
+                    ForgeOSConstants.TOTAL_FRAMES,
+                    ForgeOSConstants.FRAME_SIZE,
+                    ForgeOSConstants.TLB_CAPACITY
+            );
+
+            // 프로세스가 종료되면(kill 또는 burst 완료) MemoryManager가 자원을 회수하도록 연결
+            processManager.setTerminationListener(memoryManager::releaseProcess);
+
             kernel.registerProcessManager(processManager);
+            kernel.registerMemoryManager(memoryManager);
 
             timer = new HardwareTimer(kernel);
             timer.start();

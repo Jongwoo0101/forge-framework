@@ -7,5 +7,9 @@ public enum SystemCallType {
     PS,
     EXEC,
     KILL,
-    SCHEDULER
+    SCHEDULER,
+    MALLOC,
+    FREE,
+    MEMINFO,
+    TRANSLATE
 }
