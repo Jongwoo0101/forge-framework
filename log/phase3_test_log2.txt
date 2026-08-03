@@ -1,0 +1,88 @@
+=================================================
+ ForgeFramework v1.0-phase3
+ Operating System Kernel Architecture Engine
+=================================================
+[21:53:07.797] [INFO] 하드웨어 점검 중...
+[21:53:07.953] [INFO] 이벤트 로거 초기화 중...
+[21:53:08.107] [INFO] 커널 초기화 중...
+[21:53:08.259] [INFO] 서브시스템 초기화 중...
+[21:53:08.264] [INFO] ProcessManager initialized [Scheduler: Round Robin (RR)]
+[21:53:08.270] [INFO] MemoryManager initialized [frames=16, frameSize=4]
+[21:53:08.425] [INFO] ForgeShell 준비 완료
+ForgeFramework Shell에 오신 것을 환영합니다. 'help'를 입력해보세요.
+forgeframework> exec      p1          100
+[21:53:16.922] [DEBUG] System call received: EXEC
+[21:53:16.933] [INFO] Process created: [PID=1] p1 (burstTime=100)
+[21:53:16.936] [INFO] Memory space registered: [PID=1]
+프로세스가 생성되었습니다. (PID: 1, burstTime: 100)
+forgeframework> [21:53:17.281] [DEBUG] Context Switch: -> [p1]
+
+forgeframework> malloc 1       12
+[21:53:25.557] [DEBUG] System call received: MALLOC
+[21:53:25.568] [INFO] Memory allocated: [PID=1] 12B at address 0
+PID 1: 12바이트 할당됨 (가상 주소: 0)
+forgeframework> malloc 1 4
+[21:53:43.443] [DEBUG] System call received: MALLOC
+[21:53:43.444] [INFO] Memory allocated: [PID=1] 4B at address 12
+PID 1: 4바이트 할당됨 (가상 주소: 12)
+forgeframework> meminfo
+[21:53:45.969] [DEBUG] System call received: MEMINFO
+[Physical Memory]
+Frame Size: 4, Total Frames: 16 (Total: 64 bytes)
+Used Frames: 4, Free Frames: 12
+
+[Process Heap]
+PID   | CAPACITY   | USED       | FREE
+1     | 16         | 16         | 0
+
+[TLB]
+Hits: 0, Misses: 0, Hit Ratio: 0.0%
+forgeframework> free 1 12
+[21:53:56.088] [DEBUG] System call received: FREE
+[21:53:56.089] [INFO] Memory freed: [PID=1] address=12
+PID 1: 주소 12 해제됨
+forgeframework> meminfo
+[21:53:59.983] [DEBUG] System call received: MEMINFO
+[Physical Memory]
+Frame Size: 4, Total Frames: 16 (Total: 64 bytes)
+Used Frames: 4, Free Frames: 12
+
+[Process Heap]
+PID   | CAPACITY   | USED       | FREE
+1     | 16         | 12         | 4
+
+[TLB]
+Hits: 0, Misses: 0, Hit Ratio: 0.0%
+forgeframework> malloc 1 6
+[21:54:04.392] [DEBUG] System call received: MALLOC
+[21:54:04.393] [INFO] Memory allocated: [PID=1] 6B at address 12
+PID 1: 6바이트 할당됨 (가상 주소: 12)
+forgeframework> meminfo
+[21:54:07.687] [DEBUG] System call received: MEMINFO
+[Physical Memory]
+Frame Size: 4, Total Frames: 16 (Total: 64 bytes)
+Used Frames: 5, Free Frames: 11
+
+[Process Heap]
+PID   | CAPACITY   | USED       | FREE
+1     | 20         | 18         | 2
+
+[TLB]
+Hits: 0, Misses: 0, Hit Ratio: 0.0%
+forgeframework> exec p2 50
+[21:54:16.879] [DEBUG] System call received: EXEC
+[21:54:16.879] [INFO] Process created: [PID=2] p2 (burstTime=50)
+[21:54:16.879] [INFO] Memory space registered: [PID=2]
+프로세스가 생성되었습니다. (PID: 2, burstTime: 50)
+forgeframework> [21:54:17.339] [DEBUG] Context Switch: -> [p2]
+ps
+[21:54:18.532] [DEBUG] System call received: PS
+PID   | STATE      | CPU_TIME | BURST      | NAME
+-------------------------------------------------------
+1     | READY      | 60       | 100        | p1
+2     | RUNNING    | 1        | 50         | p2*
+forgeframework> [21:54:20.342] [DEBUG] Context Switch: -> [p1]
+[21:54:23.346] [DEBUG] Context Switch: -> [p2]
+[21:54:26.349] [DEBUG] Context Switch: -> [p1]
+[21:54:29.354] [DEBUG] Context Switch: -> [p2]
+[21:54:32.359] [DEBUG] Context Switch: -> [p1]
