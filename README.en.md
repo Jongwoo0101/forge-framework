@@ -236,7 +236,7 @@ Planned
 - Only the terminated process's own entries are invalidated on process exit
 
 > Stack, Frame Table, Swap, and Page Fault Handling are not implemented yet — pages are always allocated to physical memory immediately in the current design, so there is no notion of a page being "swapped out" yet. These will be added in a later refactor if needed.
-
+> plan to add a frame table and virtual memory to phase 3.5
 ---
 
 ## 🔜 Phase 4 — File System

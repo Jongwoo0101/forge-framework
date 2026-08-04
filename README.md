@@ -215,6 +215,7 @@ Kernel은 모든 Manager의 유일한 관리자(Single Entry Point) 역할을 �
 - 프로세스 종료 시 해당 프로세스의 캐시 항목만 선택적으로 무효화
 
 > Stack, Frame Table, Swap, Page Fault Handling은 아직 구현하지 않았습니다 (현재는 페이지가 항상 즉시 물리 메모리에 할당되는 구조라 스왑/페이지 폴트 개념이 필요 없음). 필요해지면 이후 리팩토링에서 추가할 예정입니다.
+> Frame Table, Virtual Memory 를 phase 3.5에 추가할 예정
 
 ---
 
