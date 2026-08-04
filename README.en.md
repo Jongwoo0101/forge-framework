@@ -210,18 +210,32 @@ Planned
 
 ---
 
-## 🔜 Phase 3 — Memory Management
+## ✅ Phase 3 — Memory Management (Completed)
 
-- Heap
-- Stack
-- Physical Memory
-- Virtual Memory
-- Paging
-- Page Table
-- Frame Table
-- TLB
-- Swap
-- Page Fault Handling
+### Memory Manager
+
+- A Facade that combines physical memory, per-process heap, page table, and TLB
+- Heap and page table are automatically registered when a process is created via `exec`, and automatically reclaimed on termination (manual `kill` or automatic burst completion)
+- `malloc` only requests as many new physical frames as are actually needed (existing free blocks are reused first); if physical memory runs out mid-request, any frames already reserved for that request are rolled back
+
+### Heap
+
+- Free-list based first-fit allocator (`malloc` / `free`)
+- Adjacent free blocks are automatically coalesced to minimize fragmentation
+
+### Physical Memory & Paging
+
+- Physical memory is simulated as a fixed-size frame array (16 frames × 4 bytes by default)
+- Each process has its own Page Table mapping virtual pages to physical frames
+- The `translate` command lets you inspect the virtual-to-physical address translation directly
+
+### TLB
+
+- An LRU cache (capacity 4 by default) for recent address translations
+- Exposes hit/miss counters; hit ratio is shown via `meminfo`
+- Only the terminated process's own entries are invalidated on process exit
+
+> Stack, Frame Table, Swap, and Page Fault Handling are not implemented yet — pages are always allocated to physical memory immediately in the current design, so there is no notion of a page being "swapped out" yet. These will be added in a later refactor if needed.
 
 ---
 
@@ -306,7 +320,7 @@ deadlock
 
 ---
 
-# Supported Commands (Phase 2)
+# Supported Commands (Phase 3)
 
 | Command | Description |
 |----------|-------------|
@@ -316,14 +330,15 @@ deadlock
 | exec \<name> [burstTime] | Create a new process; burstTime falls back to a default if omitted |
 | kill \<pid> | Terminate a process |
 | scheduler [fcfs\|rr] | Inspect the current scheduler, or switch algorithms at runtime |
+| malloc \<pid> \<size> | Allocate memory on a process's heap |
+| free \<pid> \<address> | Free an allocated block |
+| meminfo | Show physical memory / per-process heap / TLB usage |
+| translate \<pid> \<vaddr> | Translate a virtual address to a physical address (inspect Paging + TLB) |
 | shutdown | Shut down the simulator |
 
 Planned commands
 
 - fork
-- malloc
-- free
-- meminfo
 - ls
 - mkdir
 - touch

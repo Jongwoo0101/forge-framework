@@ -189,17 +189,32 @@ Kernel은 모든 Manager의 유일한 관리자(Single Entry Point) 역할을 �
 
 ---
 
-## 🔜 Phase 3 — Memory Management
+## ✅ Phase 3 — Memory Management (완료)
 
-- Heap
-- Stack
-- Virtual Memory
-- Paging
-- Page Table
-- Frame Table
-- TLB
-- Swap
-- Page Fault
+### Memory Manager
+
+- 물리 메모리/힙/페이지 테이블/TLB를 조합하는 Facade
+- `exec`로 프로세스가 생성되면 자동으로 힙·페이지 테이블을 등록, 종료(kill 또는 burst 자연 종료) 시 자동 회수
+- malloc 시 필요한 만큼만 페이지 단위로 물리 프레임을 확보(기존 자유 블록으로 충당 가능하면 새 프레임 요청 안 함), 부족하면 이미 확보한 프레임까지 롤백
+
+### Heap
+
+- Free-list 기반 first-fit 할당기 (`malloc`/`free`)
+- 인접한 자유 블록 자동 병합(coalescing)으로 단편화 최소화
+
+### Physical Memory & Paging
+
+- 고정 크기 프레임 배열(기본 16프레임 × 4바이트)로 물리 메모리 시뮬레이션
+- 프로세스별 Page Table로 가상 페이지 ↔ 물리 프레임 매핑
+- `translate` 명령으로 가상 주소 → 물리 주소 변환 과정을 직접 확인 가능
+
+### TLB
+
+- 최근 주소 변환 결과를 캐싱하는 LRU 캐시 (기본 용량 4)
+- hit/miss 카운터 제공, `meminfo`에서 적중률 확인 가능
+- 프로세스 종료 시 해당 프로세스의 캐시 항목만 선택적으로 무효화
+
+> Stack, Frame Table, Swap, Page Fault Handling은 아직 구현하지 않았습니다 (현재는 페이지가 항상 즉시 물리 메모리에 할당되는 구조라 스왑/페이지 폴트 개념이 필요 없음). 필요해지면 이후 리팩토링에서 추가할 예정입니다.
 
 ---
 
@@ -284,7 +299,7 @@ deadlock
 
 ---
 
-# 지원 명령어 (Phase 2 기준)
+# 지원 명령어 (Phase 3 기준)
 
 | 명령어 | 설명 |
 |--------|------|
@@ -294,14 +309,15 @@ deadlock
 | exec \<name> [burstTime] | 새로운 프로세스 생성. burstTime 생략 시 기본값 적용 |
 | kill \<pid> | 프로세스 종료 |
 | scheduler [fcfs\|rr] | 현재 스케줄러 조회, 또는 런타임에 알고리즘 교체 |
+| malloc \<pid> \<size> | 프로세스 힙에 메모리 할당 |
+| free \<pid> \<address> | 할당된 메모리 해제 |
+| meminfo | 물리 메모리/프로세스별 힙/TLB 사용 현황 출력 |
+| translate \<pid> \<vaddr> | 가상 주소를 물리 주소로 변환 (Paging + TLB 동작 확인용) |
 | shutdown | 시스템 종료 |
 
 향후 추가 예정
 
 - fork
-- malloc
-- free
-- meminfo
 - ls
 - mkdir
 - touch
