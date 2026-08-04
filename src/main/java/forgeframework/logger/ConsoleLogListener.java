@@ -10,6 +10,10 @@ public class ConsoleLogListener implements LogListener {
 
     @Override
     public void onLogEvent(LogEntry entry) {
-        System.out.println(entry.toFormattedString());
+
+        // DEBUG 레벨의 로그는 출력에서 제외 (입력 방해 등의 이유로 추후 이 if 절 삭제 후 배포 얘정)
+        if (entry.getLevel() != LogLevel.DEBUG) {
+            System.out.println(entry.toFormattedString());
+        }
     }
 }

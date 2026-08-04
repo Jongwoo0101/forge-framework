@@ -1,0 +1,63 @@
+=================================================
+ ForgeFramework v1.0-phase3
+ Operating System Kernel Architecture Engine
+=================================================
+[12:10:37.423] [INFO] 하드웨어 점검 중...
+[12:10:37.578] [INFO] 이벤트 로거 초기화 중...
+[12:10:37.733] [INFO] 커널 초기화 중...
+[12:10:37.887] [INFO] 서브시스템 초기화 중...
+[12:10:37.895] [INFO] ProcessManager initialized [Scheduler: Round Robin (RR)]
+[12:10:37.904] [INFO] MemoryManager initialized [frames=16, frameSize=4]
+[12:10:38.061] [INFO] ForgeShell 준비 완료
+ForgeFramework Shell에 오신 것을 환영합니다. 'help'를 입력해보세요.
+forgeframework> exec p1 100
+[12:10:49.004] [INFO] Process created: [PID=1] p1 (burstTime=100)
+[12:10:49.007] [INFO] Memory space registered: [PID=1]
+프로세스가 생성되었습니다. (PID: 1, burstTime: 100)
+forgeframework> malloc 1 8
+[12:10:55.058] [INFO] Memory allocated: [PID=1] 8B at address 0
+PID 1: 8바이트 할당됨 (가상 주소: 0)
+forgeframework> exec p2 100
+[12:10:59.223] [INFO] Process created: [PID=2] p2 (burstTime=100)
+[12:10:59.223] [INFO] Memory space registered: [PID=2]
+프로세스가 생성되었습니다. (PID: 2, burstTime: 100)
+forgeframework> malloc 2 8
+[12:11:04.083] [INFO] Memory allocated: [PID=2] 8B at address 0
+PID 2: 8바이트 할당됨 (가상 주소: 0)
+forgeframework> translate 1 0
+가상주소 0 -> 물리주소 0 (페이지 #0 -> 프레임 #0, TLB MISS)
+forgeframework> translate 2 0
+가상주소 0 -> 물리주소 8 (페이지 #0 -> 프레임 #2, TLB MISS)
+forgeframework> translate 1 3
+가상주소 3 -> 물리주소 3 (페이지 #0 -> 프레임 #0, TLB HIT)
+forgeframework> translate 1 4
+가상주소 4 -> 물리주소 4 (페이지 #1 -> 프레임 #1, TLB MISS)
+forgeframework> translate 1 12
+매핑되지 않은 가상 주소입니다: 12
+forgeframework> malloc 1 20
+[12:11:41.958] [INFO] Memory allocated: [PID=1] 20B at address 8
+PID 1: 20바이트 할당됨 (가상 주소: 8)
+forgeframework> translate 1 0
+가상주소 0 -> 물리주소 0 (페이지 #0 -> 프레임 #0, TLB HIT)
+forgeframework> translate 1 4
+가상주소 4 -> 물리주소 4 (페이지 #1 -> 프레임 #1, TLB HIT)
+forgeframework> translate 1 8
+가상주소 8 -> 물리주소 16 (페이지 #2 -> 프레임 #4, TLB MISS)
+forgeframework> translate 1 12
+가상주소 12 -> 물리주소 20 (페이지 #3 -> 프레임 #5, TLB MISS)
+forgeframework> translate 1 16
+가상주소 16 -> 물리주소 24 (페이지 #4 -> 프레임 #6, TLB MISS)
+forgeframework> translate 1 0
+가상주소 0 -> 물리주소 0 (페이지 #0 -> 프레임 #0, TLB MISS)
+forgeframework> meminfo
+[Physical Memory]
+Frame Size: 4, Total Frames: 16 (Total: 64 bytes)
+Used Frames: 9, Free Frames: 7
+
+[Process Heap]
+PID   | CAPACITY   | USED       | FREE
+1     | 28         | 28         | 0
+2     | 8          | 8          | 0
+
+[TLB]
+Hits: 3, Misses: 8, Hit Ratio: 27.3%
