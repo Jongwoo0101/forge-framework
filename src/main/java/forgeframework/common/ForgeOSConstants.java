@@ -12,7 +12,7 @@ public final class ForgeOSConstants {
     public static final String OS_NAME = "ForgeFramework";
 
     /** OS 버전. */
-    public static final String OS_VERSION = "1.0-phase3";
+    public static final String OS_VERSION = "1.0-phase3.5";
 
     /** Shell 프롬프트 기본 문자열. */
     public static final String SHELL_PROMPT = "forgeframework> ";
