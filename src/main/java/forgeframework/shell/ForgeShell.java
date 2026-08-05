@@ -13,6 +13,7 @@ import forgeframework.command.MallocCommand;
 import forgeframework.command.FreeCommand;
 import forgeframework.command.MeminfoCommand;
 import forgeframework.command.TranslateCommand;
+import forgeframework.command.FrameTableCommand;
 import forgeframework.common.ForgeOSConstants;
 import forgeframework.kernel.Kernel;
 import forgeframework.syscall.SystemCallResult;
@@ -47,6 +48,7 @@ public class ForgeShell {
         registry.register(new FreeCommand());
         registry.register(new MeminfoCommand());
         registry.register(new TranslateCommand());
+        registry.register(new FrameTableCommand());
     }
 
     public void run() {
