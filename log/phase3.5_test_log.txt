@@ -1,0 +1,237 @@
+=================================================
+ ForgeFramework v1.0-phase3.5
+ Operating System Kernel Architecture Engine
+=================================================
+[12:19:36.897] [INFO] 하드웨어 점검 중...
+[12:19:37.056] [INFO] 이벤트 로거 초기화 중...
+[12:19:37.212] [INFO] 커널 초기화 중...
+[12:19:37.365] [INFO] 서브시스템 초기화 중...
+[12:19:37.367] [INFO] ProcessManager initialized [Scheduler: Round Robin (RR)]
+[12:19:37.370] [INFO] MemoryManager initialized [frames=16, frameSize=4]
+[12:19:37.526] [INFO] ForgeShell 준비 완료
+ForgeFramework Shell에 오신 것을 환영합니다. 'help'를 입력해보세요.
+forgeframework> exec p1 100
+[12:19:43.408] [INFO] Process created: [PID=1] p1 (burstTime=100)
+[12:19:43.409] [INFO] Memory space registered: [PID=1]
+프로세스가 생성되었습니다. (PID: 1, burstTime: 100)
+forgeframework> malloc 1 10
+[12:19:47.508] [INFO] Memory allocated: [PID=1] 10B at address 0
+PID 1: 10바이트 할당됨 (가상 주소: 0)
+forgeframework> malloc 1 5
+[12:19:51.676] [INFO] Memory allocated: [PID=1] 5B at address 10
+PID 1: 5바이트 할당됨 (가상 주소: 10)
+forgeframework> frametable
+FRAME  | STATUS | PID   | PAGE
+0      | USED   | 1     | 0
+1      | USED   | 1     | 1
+2      | USED   | 1     | 2
+3      | USED   | 1     | 3
+4      | FREE   | -     | -
+5      | FREE   | -     | -
+6      | FREE   | -     | -
+7      | FREE   | -     | -
+8      | FREE   | -     | -
+9      | FREE   | -     | -
+10     | FREE   | -     | -
+11     | FREE   | -     | -
+12     | FREE   | -     | -
+13     | FREE   | -     | -
+14     | FREE   | -     | -
+15     | FREE   | -     | -
+forgeframework> exepc p2 100
+'exepc': 알 수 없는 명령어입니다. 'help'를 입력해 사용 가능한 명령어를 확인하세요.
+forgeframework> exec p2 100
+[12:20:06.753] [INFO] Process created: [PID=2] p2 (burstTime=100)
+[12:20:06.753] [INFO] Memory space registered: [PID=2]
+프로세스가 생성되었습니다. (PID: 2, burstTime: 100)
+forgeframework> malloc 2 8
+[12:20:10.389] [INFO] Memory allocated: [PID=2] 8B at address 0
+PID 2: 8바이트 할당됨 (가상 주소: 0)
+forgeframework> frametable
+FRAME  | STATUS | PID   | PAGE
+0      | USED   | 1     | 0
+1      | USED   | 1     | 1
+2      | USED   | 1     | 2
+3      | USED   | 1     | 3
+4      | USED   | 2     | 0
+5      | USED   | 2     | 1
+6      | FREE   | -     | -
+7      | FREE   | -     | -
+8      | FREE   | -     | -
+9      | FREE   | -     | -
+10     | FREE   | -     | -
+11     | FREE   | -     | -
+12     | FREE   | -     | -
+13     | FREE   | -     | -
+14     | FREE   | -     | -
+15     | FREE   | -     | -
+forgeframework> kill 1
+[12:20:20.076] [WARN] Process killed: [PID=1]
+[12:20:20.078] [INFO] Memory space released: [PID=1]
+프로세스(PID: 1)가 종료되었습니다.
+forgeframework> frametable
+FRAME  | STATUS | PID   | PAGE
+0      | FREE   | -     | -
+1      | FREE   | -     | -
+2      | FREE   | -     | -
+3      | FREE   | -     | -
+4      | USED   | 2     | 0
+5      | USED   | 2     | 1
+6      | FREE   | -     | -
+7      | FREE   | -     | -
+8      | FREE   | -     | -
+9      | FREE   | -     | -
+10     | FREE   | -     | -
+11     | FREE   | -     | -
+12     | FREE   | -     | -
+13     | FREE   | -     | -
+14     | FREE   | -     | -
+15     | FREE   | -     | -
+forgeframework> meminfo
+[Physical Memory]
+Frame Size: 4, Total Frames: 16 (Total: 64 bytes)
+Used Frames: 2, Free Frames: 14
+
+[Process Heap]
+PID   | CAPACITY   | USED       | FREE
+2     | 8          | 8          | 0
+
+[TLB]
+Hits: 0, Misses: 0, Hit Ratio: 0.0%
+
+=================================================
+ ForgeFramework v1.0-phase3.5
+ Operating System Kernel Architecture Engine
+=================================================
+[12:22:10.404] [INFO] 하드웨어 점검 중...
+[12:22:10.560] [INFO] 이벤트 로거 초기화 중...
+[12:22:10.713] [INFO] 커널 초기화 중...
+[12:22:10.869] [INFO] 서브시스템 초기화 중...
+[12:22:10.875] [INFO] ProcessManager initialized [Scheduler: Round Robin (RR)]
+[12:22:10.883] [INFO] MemoryManager initialized [frames=16, frameSize=4]
+[12:22:11.039] [INFO] ForgeShell 준비 완료
+ForgeFramework Shell에 오신 것을 환영합니다. 'help'를 입력해보세요.
+forgeframework> exec p1 100
+[12:22:14.857] [INFO] Process created: [PID=1] p1 (burstTime=100)
+[12:22:14.860] [INFO] Memory space registered: [PID=1]
+프로세스가 생성되었습니다. (PID: 1, burstTime: 100)
+forgeframework> malloc 1 16
+[12:22:19.065] [INFO] Memory allocated: [PID=1] 16B at address 0
+PID 1: 16바이트 할당됨 (가상 주소: 0)
+forgeframework> translate 1 0
+가상주소 0 -> 물리주소 0 (페이지 #0 -> 프레임 #0, TLB MISS)
+forgeframework> translate 1 0
+가상주소 0 -> 물리주소 0 (페이지 #0 -> 프레임 #0, TLB HIT)
+forgeframework> translate 1 15
+가상주소 15 -> 물리주소 15 (페이지 #3 -> 프레임 #3, TLB MISS)
+forgeframework> frametable
+FRAME  | STATUS | PID   | PAGE
+0      | USED   | 1     | 0
+1      | USED   | 1     | 1
+2      | USED   | 1     | 2
+3      | USED   | 1     | 3
+4      | FREE   | -     | -
+5      | FREE   | -     | -
+6      | FREE   | -     | -
+7      | FREE   | -     | -
+8      | FREE   | -     | -
+9      | FREE   | -     | -
+10     | FREE   | -     | -
+11     | FREE   | -     | -
+12     | FREE   | -     | -
+13     | FREE   | -     | -
+14     | FREE   | -     | -
+15     | FREE   | -     | -
+
+
+=================================================
+ ForgeFramework v1.0-phase3.5
+ Operating System Kernel Architecture Engine
+=================================================
+[12:22:49.422] [INFO] 하드웨어 점검 중...
+[12:22:49.576] [INFO] 이벤트 로거 초기화 중...
+[12:22:49.731] [INFO] 커널 초기화 중...
+[12:22:49.885] [INFO] 서브시스템 초기화 중...
+[12:22:49.890] [INFO] ProcessManager initialized [Scheduler: Round Robin (RR)]
+[12:22:49.896] [INFO] MemoryManager initialized [frames=16, frameSize=4]
+[12:22:50.052] [INFO] ForgeShell 준비 완료
+ForgeFramework Shell에 오신 것을 환영합니다. 'help'를 입력해보세요.
+forgeframework> exec p1 100
+[12:22:58.984] [INFO] Process created: [PID=1] p1 (burstTime=100)
+[12:22:58.987] [INFO] Memory space registered: [PID=1]
+프로세스가 생성되었습니다. (PID: 1, burstTime: 100)
+forgeframework> malloc 1 10
+[12:23:02.800] [INFO] Memory allocated: [PID=1] 10B at address 0
+PID 1: 10바이트 할당됨 (가상 주소: 0)
+forgeframework> malloc 1 5
+[12:23:04.955] [INFO] Memory allocated: [PID=1] 5B at address 10
+PID 1: 5바이트 할당됨 (가상 주소: 10)
+forgeframework> meminfo
+[Physical Memory]
+Frame Size: 4, Total Frames: 16 (Total: 64 bytes)
+Used Frames: 4, Free Frames: 12
+
+[Process Heap]
+PID   | CAPACITY   | USED       | FREE
+1     | 16         | 15         | 1
+
+[TLB]
+Hits: 0, Misses: 0, Hit Ratio: 0.0%
+
+=================================================
+ ForgeFramework v1.0-phase3.5
+ Operating System Kernel Architecture Engine
+=================================================
+[12:24:25.956] [INFO] 하드웨어 점검 중...
+[12:24:26.110] [INFO] 이벤트 로거 초기화 중...
+[12:24:26.261] [INFO] 커널 초기화 중...
+[12:24:26.413] [INFO] 서브시스템 초기화 중...
+[12:24:26.418] [INFO] ProcessManager initialized [Scheduler: Round Robin (RR)]
+[12:24:26.423] [INFO] MemoryManager initialized [frames=16, frameSize=4]
+[12:24:26.579] [INFO] ForgeShell 준비 완료
+ForgeFramework Shell에 오신 것을 환영합니다. 'help'를 입력해보세요.
+forgeframework> exec p1 5
+[12:24:32.660] [INFO] Process created: [PID=1] p1 (burstTime=5)
+[12:24:32.664] [INFO] Memory space registered: [PID=1]
+프로세스가 생성되었습니다. (PID: 1, burstTime: 5)
+forgeframework> malloc 1 8
+[12:24:35.934] [INFO] Memory allocated: [PID=1] 8B at address 0
+PID 1: 8바이트 할당됨 (가상 주소: 0)
+forgeframework> [12:24:38.442] [INFO] Process completed: [PID=1] p1
+[12:24:38.444] [INFO] Memory space released: [PID=1]
+ps
+PID   | STATE      | CPU_TIME | BURST      | NAME
+-------------------------------------------------------
+1     | TERMINATED | 5        | 5          | p1
+forgeframework> frametable
+FRAME  | STATUS | PID   | PAGE
+0      | FREE   | -     | -
+1      | FREE   | -     | -
+2      | FREE   | -     | -
+3      | FREE   | -     | -
+4      | FREE   | -     | -
+5      | FREE   | -     | -
+6      | FREE   | -     | -
+7      | FREE   | -     | -
+8      | FREE   | -     | -
+9      | FREE   | -     | -
+10     | FREE   | -     | -
+11     | FREE   | -     | -
+12     | FREE   | -     | -
+13     | FREE   | -     | -
+14     | FREE   | -     | -
+15     | FREE   | -     | -
+forgeframework> help
+사용 가능한 명령어:
+  help       사용 가능한 명령어 목록을 출력합니다.
+  shutdown   ForgeOS를 종료합니다.
+  uptime     커널 가동 시간을 출력합니다.
+  ps         프로세스 상태 목록을 출력합니다.
+  exec       새 프로세스를 생성합니다. (exec <이름> [burstTime])
+  kill       프로세스를 강제 종료합니다. (kill <PID>)
+  scheduler  스케줄러를 조회하거나 변경합니다. (scheduler [fcfs|rr])
+  malloc     힙에 메모리를 할당합니다. (malloc <PID> <size>)
+  free       할당된 메모리를 해제합니다. (free <PID> <address>)
+  meminfo    물리 메모리/힙/TLB 사용 현황을 출력합니다.
+  translate  가상 주소를 물리 주소로 변환합니다. (translate <PID> <vaddr>)
+  frametable 물리 프레임 테이블(프레임별 소유자/페이지 매핑)을 출력합니다.
