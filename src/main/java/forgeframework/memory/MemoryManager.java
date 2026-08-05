@@ -12,8 +12,8 @@ import java.util.Map;
 /**
  * 메모리 서브시스템 전체를 총괄하는 매니저.
  *
- * <p>{@link PhysicalMemory}(물리 프레임), 프로세스별 {@link PageTable}(가상→물리 매핑),
- * 프로세스별 {@link Heap}(malloc/free 장부), {@link Tlb}(주소 변환 캐시)를 조합해서
+ * <p>{@link PhysicalMemory}(물리 프레임), 프로세스별 {@link VirtualAddressSpace}
+ * (가상 주소 공간 = Heap + PageTable), {@link Tlb}(주소 변환 캐시)를 조합해서
  * "가상 주소만 아는 프로세스"와 "실제로는 유한한 물리 메모리" 사이를 중개한다.</p>
  *
  * <p>Kernel이 ProcessManager를 다루는 것과 동일하게, Shell/Command 계층은 이
@@ -25,8 +25,7 @@ public final class MemoryManager {
     private final PhysicalMemory physicalMemory;
     private final Tlb tlb;
 
-    private final Map<Integer, Heap> heaps = new LinkedHashMap<>();
-    private final Map<Integer, PageTable> pageTables = new LinkedHashMap<>();
+    private final Map<Integer, VirtualAddressSpace> addressSpaces = new LinkedHashMap<>();
 
     public MemoryManager(EventLogger logger, int totalFrames, int frameSize, int tlbCapacity) {
         this.logger = logger;
@@ -37,14 +36,13 @@ public final class MemoryManager {
     }
 
     /**
-     * 새 프로세스를 위한 빈 힙/페이지 테이블을 준비한다.
+     * 새 프로세스를 위한 빈 가상 주소 공간(Heap + PageTable)을 준비한다.
      * 프로세스 생성(exec) 시 Kernel이 호출한다.
      *
      * @param pid 등록할 프로세스의 pid
      */
     public synchronized void registerProcess(int pid) {
-        heaps.put(pid, new Heap());
-        pageTables.put(pid, new PageTable());
+        addressSpaces.put(pid, new VirtualAddressSpace(pid));
         logger.log(LogLevel.INFO, "Memory space registered: [PID=" + pid + "]");
     }
 
@@ -56,13 +54,12 @@ public final class MemoryManager {
      * @param pid 회수할 프로세스의 pid
      */
     public synchronized void releaseProcess(int pid) {
-        PageTable pageTable = pageTables.remove(pid);
-        if (pageTable != null) {
-            for (int frameNumber : pageTable.mappedFrames()) {
+        VirtualAddressSpace addressSpace = addressSpaces.remove(pid);
+        if (addressSpace != null) {
+            for (int frameNumber : addressSpace.getPageTable().mappedFrames()) {
                 physicalMemory.freeFrame(frameNumber);
             }
         }
-        heaps.remove(pid);
         tlb.invalidateForPid(pid);
         logger.log(LogLevel.INFO, "Memory space released: [PID=" + pid + "]");
     }
@@ -80,10 +77,11 @@ public final class MemoryManager {
      * @throws ForgeOSException 프로세스가 등록되지 않았거나 물리 메모리가 부족한 경우
      */
     public synchronized long malloc(int pid, long size) {
-        Heap heap = heaps.get(pid);
-        if (heap == null) {
+        VirtualAddressSpace addressSpace = addressSpaces.get(pid);
+        if (addressSpace == null) {
             throw new ForgeOSException("등록되지 않은 프로세스입니다: PID " + pid);
         }
+        Heap heap = addressSpace.getHeap();
 
         Long address = heap.allocate(size);
         if (address != null) {
@@ -91,7 +89,7 @@ public final class MemoryManager {
             return address;
         }
 
-        growHeapForAllocation(pid, heap, size);
+        growHeapForAllocation(pid, addressSpace, size);
 
         address = heap.allocate(size);
         if (address == null) {
@@ -102,7 +100,10 @@ public final class MemoryManager {
         return address;
     }
 
-    private void growHeapForAllocation(int pid, Heap heap, long size) {
+    private void growHeapForAllocation(int pid, VirtualAddressSpace addressSpace, long size) {
+        Heap heap = addressSpace.getHeap();
+        PageTable pageTable = addressSpace.getPageTable();
+
         int pageSize = physicalMemory.getFrameSize();
         long endFree = heap.getEndFreeSize();
         long actualNeeded = Math.max(0, size - endFree);
@@ -110,12 +111,14 @@ public final class MemoryManager {
         long newCapacity = heap.getCapacity() + actualNeeded;
         int pagesNeeded = (int) (ceilDiv(newCapacity, pageSize) - ceilDiv(heap.getCapacity(), pageSize));
 
-        PageTable pageTable = pageTables.get(pid);
         int startPage = (int) (heap.getCapacity() / pageSize);
 
         List<Integer> newFrames = new ArrayList<>();
         for (int i = 0; i < pagesNeeded; i++) {
-            Frame frame = physicalMemory.allocateFrame(pid);
+            int pageNumber = startPage + i;
+            // 프레임 할당과 동시에 pageNumber를 넘겨서, Frame Table이 바로 역조회
+            // 가능한 상태(어느 pid의 어느 페이지인지)로 만들어둔다.
+            Frame frame = physicalMemory.allocateFrame(pid, pageNumber);
             if (frame == null) {
                 // 부분 확보 상태로 남기지 않도록 지금까지 확보한 프레임을 전부 되돌린다.
                 for (int frameNumber : newFrames) {
@@ -124,10 +127,7 @@ public final class MemoryManager {
                 throw new ForgeOSException("메모리가 부족합니다 (물리 프레임 부족)");
             }
             newFrames.add(frame.getFrameNumber());
-        }
-
-        for (int i = 0; i < newFrames.size(); i++) {
-            pageTable.map(startPage + i, newFrames.get(i));
+            pageTable.map(pageNumber, frame.getFrameNumber());
         }
 
         heap.grow((long) pagesNeeded * pageSize);
@@ -145,11 +145,11 @@ public final class MemoryManager {
      * @throws ForgeOSException 프로세스가 등록되지 않았거나 유효하지 않은 주소인 경우
      */
     public synchronized void free(int pid, long address) {
-        Heap heap = heaps.get(pid);
-        if (heap == null) {
+        VirtualAddressSpace addressSpace = addressSpaces.get(pid);
+        if (addressSpace == null) {
             throw new ForgeOSException("등록되지 않은 프로세스입니다: PID " + pid);
         }
-        heap.free(address);
+        addressSpace.getHeap().free(address);
         logger.log(LogLevel.INFO, "Memory freed: [PID=" + pid + "] address=" + address);
     }
 
@@ -163,14 +163,15 @@ public final class MemoryManager {
      * @throws ForgeOSException 프로세스가 등록되지 않았거나 매핑되지 않은 주소인 경우
      */
     public synchronized TranslationResult translate(int pid, long virtualAddress) {
-        PageTable pageTable = pageTables.get(pid);
-        if (pageTable == null) {
+        VirtualAddressSpace addressSpace = addressSpaces.get(pid);
+        if (addressSpace == null) {
             throw new ForgeOSException("등록되지 않은 프로세스입니다: PID " + pid);
         }
         if (virtualAddress < 0) {
             throw new ForgeOSException("가상 주소는 0 이상이어야 합니다.");
         }
 
+        PageTable pageTable = addressSpace.getPageTable();
         int pageSize = physicalMemory.getFrameSize();
         int pageNumber = (int) (virtualAddress / pageSize);
         int offset = (int) (virtualAddress % pageSize);
@@ -194,8 +195,8 @@ public final class MemoryManager {
      */
     public synchronized MemorySnapshot getSnapshot() {
         Map<Integer, HeapSnapshot> heapSnapshots = new LinkedHashMap<>();
-        for (Map.Entry<Integer, Heap> entry : heaps.entrySet()) {
-            Heap heap = entry.getValue();
+        for (Map.Entry<Integer, VirtualAddressSpace> entry : addressSpaces.entrySet()) {
+            Heap heap = entry.getValue().getHeap();
             heapSnapshots.put(entry.getKey(), new HeapSnapshot(
                     entry.getKey(), heap.getCapacity(), heap.getUsedBytes(), heap.getFreeBytes()
             ));
@@ -211,5 +212,20 @@ public final class MemoryManager {
                 tlb.getMissCount(),
                 tlb.getHitRatio()
         );
+    }
+
+    /**
+     * 물리 프레임 전체의 현재 상태를 프레임 번호 순서로 스냅샷 반환한다
+     * ({@code frametable} 명령용 데이터). Kernel/MemoryManager는 순수 데이터만
+     * 반환하고, 표로 꾸미는 건 FrameTableCommand(Shell 계층)의 책임이다.
+     */
+    public synchronized List<FrameInfo> getFrameTableSnapshot() {
+        List<FrameInfo> snapshot = new ArrayList<>();
+        for (Frame frame : physicalMemory.getFrameTable().getAllFrames()) {
+            snapshot.add(new FrameInfo(
+                    frame.getFrameNumber(), frame.isAllocated(), frame.getOwnerPid(), frame.getPageNumber()
+            ));
+        }
+        return snapshot;
     }
 }
