@@ -214,8 +214,25 @@ Kernel은 모든 Manager의 유일한 관리자(Single Entry Point) 역할을 �
 - hit/miss 카운터 제공, `meminfo`에서 적중률 확인 가능
 - 프로세스 종료 시 해당 프로세스의 캐시 항목만 선택적으로 무효화
 
-> Stack, Frame Table, Swap, Page Fault Handling은 아직 구현하지 않았습니다 (현재는 페이지가 항상 즉시 물리 메모리에 할당되는 구조라 스왑/페이지 폴트 개념이 필요 없음). 필요해지면 이후 리팩토링에서 추가할 예정입니다.
-> Frame Table, Virtual Memory 를 phase 3.5에 추가할 예정
+> Stack, Swap, Page Fault Handling은 아직 구현하지 않았습니다 (현재는 페이지가 항상 즉시 물리 메모리에 할당되는 구조라 스왑/페이지 폴트 개념이 필요 없음). Frame Table과 Virtual Memory는 Phase 3.5에서 마무리했고, Stack은 이후 필요할 때 별도로 추가할 예정입니다.
+
+---
+
+## ✅ Phase 3.5 — Frame Table & Virtual Memory (완료)
+
+Phase 3에서 남겨뒀던 항목 중 File System(Phase 4)과 무관하게 독립적으로 구현 가능한 두 가지를 먼저 마무리했습니다. (Swap/Page Fault Handling은 Phase 4의 Virtual Disk가 먼저 필요해서 계속 보류)
+
+### Frame Table
+
+- 프레임 번호로 소유 프로세스(pid)와 매핑된 가상 페이지 번호를 즉시 역조회하는 전용 클래스(`FrameTable`)로 분리
+- 배열 인덱스가 곧 프레임 번호라 조회는 항상 O(1)
+- `frametable` 명령으로 물리 프레임 전체 상태(할당 여부/소유자/페이지)를 표로 확인 가능
+
+### Virtual Memory
+
+- 프로세스 하나의 Heap + PageTable을 하나로 묶는 `VirtualAddressSpace` 클래스 신설
+- 기존에는 `heaps`, `pageTables` 두 개의 별도 Map을 병렬로 관리해서 이론상 한쪽만 등록/해제되는 불일치가 생길 여지가 있었는데, pid 하나당 Map 엔트리 하나만 존재하도록 통합
+- `malloc`이 프레임을 확보하는 시점에 곧바로 `pageNumber`를 넘겨 매핑하도록 정리해서, Frame Table이 항상 정확한 소유자/페이지 정보를 갖도록 함
 
 ---
 
@@ -282,6 +299,7 @@ forgeframework
 ├── hardware                 # Virtual Hardware (HardwareTimer)
 ├── kernel                   # Kernel (Singleton + Facade)
 ├── logger                   # Observer-based Logger
+├── memory                   # PhysicalMemory, FrameTable, VirtualAddressSpace, Heap, PageTable, Tlb
 ├── process                  # PCB, Process, ProcessManager, ProcessState
 │   └── scheduler             # Scheduler(Strategy), FcfsScheduler, RoundRobinScheduler
 ├── shell                    # ForgeShell
@@ -291,7 +309,6 @@ forgeframework
 Phase가 진행됨에 따라 아래 패키지가 추가될 예정입니다.
 
 ```text
-memory
 filesystem
 interrupt
 device
@@ -300,7 +317,7 @@ deadlock
 
 ---
 
-# 지원 명령어 (Phase 3 기준)
+# 지원 명령어 (Phase 3.5 기준)
 
 | 명령어 | 설명 |
 |--------|------|
@@ -314,6 +331,7 @@ deadlock
 | free \<pid> \<address> | 할당된 메모리 해제 |
 | meminfo | 물리 메모리/프로세스별 힙/TLB 사용 현황 출력 |
 | translate \<pid> \<vaddr> | 가상 주소를 물리 주소로 변환 (Paging + TLB 동작 확인용) |
+| frametable | 물리 프레임 테이블(프레임별 소유자/페이지 매핑) 출력 |
 | shutdown | 시스템 종료 |
 
 향후 추가 예정

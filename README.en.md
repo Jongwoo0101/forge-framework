@@ -235,8 +235,25 @@ Planned
 - Exposes hit/miss counters; hit ratio is shown via `meminfo`
 - Only the terminated process's own entries are invalidated on process exit
 
-> Stack, Frame Table, Swap, and Page Fault Handling are not implemented yet — pages are always allocated to physical memory immediately in the current design, so there is no notion of a page being "swapped out" yet. These will be added in a later refactor if needed.
-> plan to add a frame table and virtual memory to phase 3.5
+> Stack, Swap, and Page Fault Handling are not implemented yet — pages are always allocated to physical memory immediately in the current design, so there is no notion of a page being "swapped out" yet. Frame Table and Virtual Memory were completed in Phase 3.5; Stack will be added separately later when needed.
+
+---
+
+## ✅ Phase 3.5 — Frame Table & Virtual Memory (Completed)
+
+Of the items left over from Phase 3, these two could be implemented independently of File System (Phase 4), so they were finished first. (Swap / Page Fault Handling still require the Virtual Disk from Phase 4 first, so they remain deferred.)
+
+### Frame Table
+
+- Frame bookkeeping was split out into a dedicated `FrameTable` class that can reverse-look-up the owning process (pid) and mapped virtual page number from a frame number
+- Lookups are always O(1) since the array index is the frame number itself
+- The `frametable` command shows the full state of physical memory (allocated/free, owner, page) as a table
+
+### Virtual Memory
+
+- Introduced a `VirtualAddressSpace` class that bundles a process's Heap and PageTable into a single object
+- Previously, `heaps` and `pageTables` were two separate parallel maps, which in theory could drift out of sync if only one of them got registered/released; now there is exactly one map entry per pid
+- `malloc` now passes the `pageNumber` directly at the moment a frame is reserved, so the Frame Table always reflects accurate owner/page information
 ---
 
 ## 🔜 Phase 4 — File System
@@ -302,6 +319,7 @@ forgeframework
 ├── hardware                 # Virtual Hardware (HardwareTimer)
 ├── kernel                   # Kernel (Singleton + Facade)
 ├── logger                   # Observer-based Logger
+├── memory                   # PhysicalMemory, FrameTable, VirtualAddressSpace, Heap, PageTable, Tlb
 ├── process                  # PCB, Process, ProcessManager, ProcessState
 │   └── scheduler             # Scheduler (Strategy), FcfsScheduler, RoundRobinScheduler
 ├── shell                    # ForgeShell
@@ -311,7 +329,6 @@ forgeframework
 Additional packages planned in future phases:
 
 ```text
-memory
 filesystem
 interrupt
 device
@@ -320,7 +337,7 @@ deadlock
 
 ---
 
-# Supported Commands (Phase 3)
+# Supported Commands (Phase 3.5)
 
 | Command | Description |
 |----------|-------------|
@@ -334,6 +351,7 @@ deadlock
 | free \<pid> \<address> | Free an allocated block |
 | meminfo | Show physical memory / per-process heap / TLB usage |
 | translate \<pid> \<vaddr> | Translate a virtual address to a physical address (inspect Paging + TLB) |
+| frametable | Show the physical frame table (per-frame owner/page mapping) |
 | shutdown | Shut down the simulator |
 
 Planned commands
