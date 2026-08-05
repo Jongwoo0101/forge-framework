@@ -11,5 +11,6 @@ public enum SystemCallType {
     MALLOC,
     FREE,
     MEMINFO,
-    TRANSLATE
+    TRANSLATE,
+    FRAMETABLE
 }
