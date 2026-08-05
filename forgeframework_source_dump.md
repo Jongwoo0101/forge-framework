@@ -1,6 +1,6 @@
 # ForgeFramework Source Dump
 
-총 Java 파일 수 : **48개**
+총 Java 파일 수 : **52개**
 
 ---
 
@@ -12,6 +12,7 @@
 - `command/Command.java`
 - `command/CommandRegistry.java`
 - `command/ExecCommand.java`
+- `command/FrameTableCommand.java`
 - `command/FreeCommand.java`
 - `command/HelpCommand.java`
 - `command/KillCommand.java`
@@ -33,6 +34,8 @@
 - `logger/LogLevel.java`
 - `logger/LogListener.java`
 - `memory/Frame.java`
+- `memory/FrameInfo.java`
+- `memory/FrameTable.java`
 - `memory/Heap.java`
 - `memory/HeapBlock.java`
 - `memory/HeapSnapshot.java`
@@ -42,6 +45,7 @@
 - `memory/PhysicalMemory.java`
 - `memory/Tlb.java`
 - `memory/TranslationResult.java`
+- `memory/VirtualAddressSpace.java`
 - `process/Process.java`
 - `process/ProcessControlBlock.java`
 - `process/ProcessManager.java`
@@ -106,6 +110,8 @@ public final class Main {
         System.setOut(new PrintStream(System.out, true, StandardCharsets.UTF_8));
         System.setErr(new PrintStream(System.err, true, StandardCharsets.UTF_8));
     }
+    // TODO: Frame Table, Virtual Memory 구현 후 Phase4 넘어가기
+    // TODO: 새롭게 구현된 내용 테스트 필요
 }
 ```
 
@@ -375,7 +381,70 @@ public final class ExecCommand implements Command {
 
 ---
 
-# 7. command/FreeCommand.java
+# 7. command/FrameTableCommand.java
+
+**Path**
+`src/main/java/forgeframework/command/FrameTableCommand.java`
+
+```java
+package forgeframework.command;
+
+import forgeframework.kernel.Kernel;
+import forgeframework.memory.FrameInfo;
+import forgeframework.syscall.SystemCallRequest;
+import forgeframework.syscall.SystemCallResult;
+import forgeframework.syscall.SystemCallType;
+
+import java.util.List;
+
+/**
+ * 물리 프레임 전체의 상태(할당 여부, 소유 pid, 매핑된 페이지 번호)를 표로 출력하는 명령어.
+ *
+ * <p>Kernel/MemoryManager는 {@link FrameInfo} 리스트라는 순수 데이터만 반환하고,
+ * 표 형태로 꾸미는 건 이 클래스(Shell 계층)의 책임이다 — MeminfoCommand/PsCommand와
+ * 동일한 원칙을 따른다.</p>
+ */
+public final class FrameTableCommand implements Command {
+
+    @Override
+    public String name() {
+        return "frametable";
+    }
+
+    @Override
+    public String description() {
+        return "물리 프레임 테이블(프레임별 소유자/페이지 매핑)을 출력합니다.";
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public SystemCallResult execute(Kernel kernel, String[] args) {
+        SystemCallResult result = kernel.handleSystemCall(new SystemCallRequest(SystemCallType.FRAMETABLE));
+        if (!result.isSuccess()) {
+            return result;
+        }
+
+        List<FrameInfo> frames = (List<FrameInfo>) result.getData();
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("%-6s | %-6s | %-5s | %s%n", "FRAME", "STATUS", "PID", "PAGE"));
+        for (FrameInfo frame : frames) {
+            sb.append(String.format(
+                    "%-6d | %-6s | %-5s | %s%n",
+                    frame.frameNumber(),
+                    frame.allocated() ? "USED" : "FREE",
+                    frame.allocated() ? String.valueOf(frame.ownerPid()) : "-",
+                    frame.allocated() ? String.valueOf(frame.pageNumber()) : "-"
+            ));
+        }
+
+        return SystemCallResult.success(sb.toString().stripTrailing());
+    }
+}
+```
+
+---
+
+# 8. command/FreeCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/FreeCommand.java`
@@ -402,7 +471,7 @@ public final class FreeCommand implements Command {
 
 ---
 
-# 8. command/HelpCommand.java
+# 9. command/HelpCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/HelpCommand.java`
@@ -455,7 +524,7 @@ public final class HelpCommand implements Command {
 
 ---
 
-# 9. command/KillCommand.java
+# 10. command/KillCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/KillCommand.java`
@@ -479,7 +548,7 @@ public final class KillCommand implements Command {
 
 ---
 
-# 10. command/MallocCommand.java
+# 11. command/MallocCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/MallocCommand.java`
@@ -506,7 +575,7 @@ public final class MallocCommand implements Command {
 
 ---
 
-# 11. command/MeminfoCommand.java
+# 12. command/MeminfoCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/MeminfoCommand.java`
@@ -587,7 +656,7 @@ public final class MeminfoCommand implements Command {
 
 ---
 
-# 12. command/PsCommand.java
+# 13. command/PsCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/PsCommand.java`
@@ -611,7 +680,7 @@ public final class PsCommand implements Command {
 
 ---
 
-# 13. command/SchedulerCommand.java
+# 14. command/SchedulerCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/SchedulerCommand.java`
@@ -639,7 +708,7 @@ public final class SchedulerCommand implements Command {
 
 ---
 
-# 14. command/ShutdownCommand.java
+# 15. command/ShutdownCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/ShutdownCommand.java`
@@ -676,7 +745,7 @@ public final class ShutdownCommand implements Command {
 
 ---
 
-# 15. command/TranslateCommand.java
+# 16. command/TranslateCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/TranslateCommand.java`
@@ -704,7 +773,7 @@ public final class TranslateCommand implements Command {
 
 ---
 
-# 16. command/UnknownCommand.java
+# 17. command/UnknownCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/UnknownCommand.java`
@@ -750,7 +819,7 @@ public final class UnknownCommand implements Command {
 
 ---
 
-# 17. command/UptimeCommand.java
+# 18. command/UptimeCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/UptimeCommand.java`
@@ -787,7 +856,7 @@ public final class UptimeCommand implements Command {
 
 ---
 
-# 18. common/ForgeOSConstants.java
+# 19. common/ForgeOSConstants.java
 
 **Path**
 `src/main/java/forgeframework/common/ForgeOSConstants.java`
@@ -807,7 +876,7 @@ public final class ForgeOSConstants {
     public static final String OS_NAME = "ForgeFramework";
 
     /** OS 버전. */
-    public static final String OS_VERSION = "1.0-phase3";
+    public static final String OS_VERSION = "1.0-phase3.5";
 
     /** Shell 프롬프트 기본 문자열. */
     public static final String SHELL_PROMPT = "forgeframework> ";
@@ -844,7 +913,7 @@ public final class ForgeOSConstants {
 
 ---
 
-# 19. exception/ForgeOSException.java
+# 20. exception/ForgeOSException.java
 
 **Path**
 `src/main/java/forgeframework/exception/ForgeOSException.java`
@@ -872,7 +941,7 @@ public class ForgeOSException extends RuntimeException {
 
 ---
 
-# 20. hardware/HardwareTimer.java
+# 21. hardware/HardwareTimer.java
 
 **Path**
 `src/main/java/forgeframework/hardware/HardwareTimer.java`
@@ -921,7 +990,7 @@ public class HardwareTimer {
 
 ---
 
-# 21. kernel/Kernel.java
+# 22. kernel/Kernel.java
 
 **Path**
 `src/main/java/forgeframework/kernel/Kernel.java`
@@ -933,6 +1002,7 @@ import forgeframework.common.ForgeOSConstants;
 import forgeframework.exception.ForgeOSException;
 import forgeframework.logger.EventLogger;
 import forgeframework.logger.LogLevel;
+import forgeframework.memory.FrameInfo;
 import forgeframework.memory.MemoryManager;
 import forgeframework.memory.MemorySnapshot;
 import forgeframework.memory.TranslationResult;
@@ -948,6 +1018,7 @@ import forgeframework.syscall.SystemCallType;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 
 /**
  * ForgeOS의 유일한 관리자(Kernel).
@@ -1034,6 +1105,7 @@ public final class Kernel {
             case FREE -> handleFree(request.getArgs());
             case MEMINFO -> handleMeminfo();
             case TRANSLATE -> handleTranslate(request.getArgs());
+            case FRAMETABLE -> handleFrameTable();
         };
     }
 
@@ -1240,6 +1312,19 @@ public final class Kernel {
         }
     }
 
+    /**
+     * 물리 프레임 전체의 상태(할당 여부, 소유 pid, 매핑된 페이지 번호)를 반환한다
+     * (Frame Table을 직접 확인하기 위한 명령). 표 형태로 꾸미는 것은
+     * FrameTableCommand(Shell 계층)의 책임이라, 여기서는 순수 데이터만 반환한다.
+     */
+    private SystemCallResult handleFrameTable() {
+        if (memoryManager == null) {
+            return SystemCallResult.failure("MemoryManager가 로드되지 않았습니다.");
+        }
+        List<FrameInfo> snapshot = memoryManager.getFrameTableSnapshot();
+        return SystemCallResult.success("", snapshot);
+    }
+
     private String formatDuration(Duration duration) {
         long hours = duration.toHours();
         long minutes = duration.toMinutesPart();
@@ -1255,7 +1340,7 @@ public final class Kernel {
 
 ---
 
-# 22. logger/ConsoleLogListener.java
+# 23. logger/ConsoleLogListener.java
 
 **Path**
 `src/main/java/forgeframework/logger/ConsoleLogListener.java`
@@ -1273,14 +1358,18 @@ public class ConsoleLogListener implements LogListener {
 
     @Override
     public void onLogEvent(LogEntry entry) {
-        System.out.println(entry.toFormattedString());
+
+        // DEBUG 레벨의 로그는 출력에서 제외 (입력 방해 등의 이유로 추후 이 if 절 삭제 후 배포 얘정)
+        if (entry.getLevel() != LogLevel.DEBUG) {
+            System.out.println(entry.toFormattedString());
+        }
     }
 }
 ```
 
 ---
 
-# 23. logger/EventLogger.java
+# 24. logger/EventLogger.java
 
 **Path**
 `src/main/java/forgeframework/logger/EventLogger.java`
@@ -1318,7 +1407,7 @@ public class EventLogger {
 
 ---
 
-# 24. logger/LogEntry.java
+# 25. logger/LogEntry.java
 
 **Path**
 `src/main/java/forgeframework/logger/LogEntry.java`
@@ -1380,7 +1469,7 @@ public final class LogEntry {
 
 ---
 
-# 25. logger/LogLevel.java
+# 26. logger/LogLevel.java
 
 **Path**
 `src/main/java/forgeframework/logger/LogLevel.java`
@@ -1409,7 +1498,7 @@ public enum LogLevel {
 
 ---
 
-# 26. logger/LogListener.java
+# 27. logger/LogListener.java
 
 **Path**
 `src/main/java/forgeframework/logger/LogListener.java`
@@ -1436,7 +1525,7 @@ public interface LogListener {
 
 ---
 
-# 27. memory/Frame.java
+# 28. memory/Frame.java
 
 **Path**
 `src/main/java/forgeframework/memory/Frame.java`
@@ -1447,14 +1536,16 @@ package forgeframework.memory;
 /**
  * 물리 메모리의 최소 단위인 프레임 하나.
  *
- * <p>어느 프로세스가 이 프레임을 점유하고 있는지(ownerPid)를 함께 들고 있어서,
- * 프로세스가 종료될 때 자신이 소유한 프레임을 일괄 회수할 수 있게 한다.</p>
+ * <p>어느 프로세스가 이 프레임을 점유하고 있는지(ownerPid)뿐 아니라, 그 프로세스의
+ * 어느 가상 페이지에 매핑되어 있는지(pageNumber)도 함께 들고 있다. 이 두 정보 덕분에
+ * "프레임 번호만 가지고 역으로 소유자/페이지를 즉시 찾는" Frame Table 조회가 가능하다.</p>
  */
 public final class Frame {
 
     private final int frameNumber;
     private boolean allocated;
     private int ownerPid = -1;
+    private int pageNumber = -1;
 
     public Frame(int frameNumber) {
         this.frameNumber = frameNumber;
@@ -1472,21 +1563,137 @@ public final class Frame {
         return ownerPid;
     }
 
-    void allocate(int pid) {
+    public int getPageNumber() {
+        return pageNumber;
+    }
+
+    void allocate(int pid, int pageNumber) {
         this.allocated = true;
         this.ownerPid = pid;
+        this.pageNumber = pageNumber;
     }
 
     void release() {
         this.allocated = false;
         this.ownerPid = -1;
+        this.pageNumber = -1;
     }
 }
 ```
 
 ---
 
-# 28. memory/Heap.java
+# 29. memory/FrameInfo.java
+
+**Path**
+`src/main/java/forgeframework/memory/FrameInfo.java`
+
+```java
+package forgeframework.memory;
+
+/**
+ * {@code frametable} 명령이 반환하는 프레임 하나의 상태.
+ */
+public record FrameInfo(int frameNumber, boolean allocated, int ownerPid, int pageNumber) {
+}
+```
+
+---
+
+# 30. memory/FrameTable.java
+
+**Path**
+`src/main/java/forgeframework/memory/FrameTable.java`
+
+```java
+package forgeframework.memory;
+
+import java.util.List;
+
+/**
+ * 프레임 번호 → (소유 프로세스, 매핑된 가상 페이지 번호)를 즉시 역조회할 수 있는
+ * 프레임 테이블.
+ *
+ * <p>배열 인덱스 자체가 프레임 번호이므로 조회는 항상 O(1)이다. {@link PhysicalMemory}는
+ * 이 클래스를 감싸서(composition) 기존 공개 API(allocateFrame/freeFrame 등)를
+ * 그대로 유지하고, 역조회가 필요한 곳({@code frametable} 명령 등)에서는 이 클래스를
+ * 직접 사용한다.</p>
+ */
+public final class FrameTable {
+
+    private final Frame[] frames;
+    private final int frameSize;
+
+    public FrameTable(int totalFrames, int frameSize) {
+        this.frameSize = frameSize;
+        this.frames = new Frame[totalFrames];
+        for (int i = 0; i < totalFrames; i++) {
+            frames[i] = new Frame(i);
+        }
+    }
+
+    /**
+     * 비어있는 프레임 하나를 찾아 pid의 pageNumber에 할당한다.
+     *
+     * @param pid        프레임을 사용할 프로세스의 pid
+     * @param pageNumber 이 프레임이 매핑될 가상 페이지 번호
+     * @return 할당된 프레임, 남은 프레임이 없으면 null
+     */
+    public Frame allocate(int pid, int pageNumber) {
+        for (Frame frame : frames) {
+            if (!frame.isAllocated()) {
+                frame.allocate(pid, pageNumber);
+                return frame;
+            }
+        }
+        return null;
+    }
+
+    public void free(int frameNumber) {
+        frames[frameNumber].release();
+    }
+
+    /**
+     * 프레임 번호로 소유자/페이지 정보를 즉시 역조회한다 — 이게 Frame Table의 핵심 기능이다.
+     *
+     * @param frameNumber 조회할 프레임 번호
+     * @return 해당 프레임 객체 (할당 여부, 소유 pid, 페이지 번호를 담고 있음)
+     */
+    public Frame lookup(int frameNumber) {
+        return frames[frameNumber];
+    }
+
+    public int getFrameSize() {
+        return frameSize;
+    }
+
+    public int getTotalFrames() {
+        return frames.length;
+    }
+
+    public int getUsedCount() {
+        int count = 0;
+        for (Frame frame : frames) {
+            if (frame.isAllocated()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public int getFreeCount() {
+        return frames.length - getUsedCount();
+    }
+
+    public List<Frame> getAllFrames() {
+        return List.of(frames);
+    }
+}
+```
+
+---
+
+# 31. memory/Heap.java
 
 **Path**
 `src/main/java/forgeframework/memory/Heap.java`
@@ -1630,7 +1837,7 @@ public final class Heap {
 
 ---
 
-# 29. memory/HeapBlock.java
+# 32. memory/HeapBlock.java
 
 **Path**
 `src/main/java/forgeframework/memory/HeapBlock.java`
@@ -1680,7 +1887,7 @@ final class HeapBlock {
 
 ---
 
-# 30. memory/HeapSnapshot.java
+# 33. memory/HeapSnapshot.java
 
 **Path**
 `src/main/java/forgeframework/memory/HeapSnapshot.java`
@@ -1697,7 +1904,7 @@ public record HeapSnapshot(int pid, long capacity, long used, long free) {
 
 ---
 
-# 31. memory/MemoryManager.java
+# 34. memory/MemoryManager.java
 
 **Path**
 `src/main/java/forgeframework/memory/MemoryManager.java`
@@ -1717,8 +1924,8 @@ import java.util.Map;
 /**
  * 메모리 서브시스템 전체를 총괄하는 매니저.
  *
- * <p>{@link PhysicalMemory}(물리 프레임), 프로세스별 {@link PageTable}(가상→물리 매핑),
- * 프로세스별 {@link Heap}(malloc/free 장부), {@link Tlb}(주소 변환 캐시)를 조합해서
+ * <p>{@link PhysicalMemory}(물리 프레임), 프로세스별 {@link VirtualAddressSpace}
+ * (가상 주소 공간 = Heap + PageTable), {@link Tlb}(주소 변환 캐시)를 조합해서
  * "가상 주소만 아는 프로세스"와 "실제로는 유한한 물리 메모리" 사이를 중개한다.</p>
  *
  * <p>Kernel이 ProcessManager를 다루는 것과 동일하게, Shell/Command 계층은 이
@@ -1730,8 +1937,7 @@ public final class MemoryManager {
     private final PhysicalMemory physicalMemory;
     private final Tlb tlb;
 
-    private final Map<Integer, Heap> heaps = new LinkedHashMap<>();
-    private final Map<Integer, PageTable> pageTables = new LinkedHashMap<>();
+    private final Map<Integer, VirtualAddressSpace> addressSpaces = new LinkedHashMap<>();
 
     public MemoryManager(EventLogger logger, int totalFrames, int frameSize, int tlbCapacity) {
         this.logger = logger;
@@ -1742,14 +1948,13 @@ public final class MemoryManager {
     }
 
     /**
-     * 새 프로세스를 위한 빈 힙/페이지 테이블을 준비한다.
+     * 새 프로세스를 위한 빈 가상 주소 공간(Heap + PageTable)을 준비한다.
      * 프로세스 생성(exec) 시 Kernel이 호출한다.
      *
      * @param pid 등록할 프로세스의 pid
      */
     public synchronized void registerProcess(int pid) {
-        heaps.put(pid, new Heap());
-        pageTables.put(pid, new PageTable());
+        addressSpaces.put(pid, new VirtualAddressSpace(pid));
         logger.log(LogLevel.INFO, "Memory space registered: [PID=" + pid + "]");
     }
 
@@ -1761,13 +1966,12 @@ public final class MemoryManager {
      * @param pid 회수할 프로세스의 pid
      */
     public synchronized void releaseProcess(int pid) {
-        PageTable pageTable = pageTables.remove(pid);
-        if (pageTable != null) {
-            for (int frameNumber : pageTable.mappedFrames()) {
+        VirtualAddressSpace addressSpace = addressSpaces.remove(pid);
+        if (addressSpace != null) {
+            for (int frameNumber : addressSpace.getPageTable().mappedFrames()) {
                 physicalMemory.freeFrame(frameNumber);
             }
         }
-        heaps.remove(pid);
         tlb.invalidateForPid(pid);
         logger.log(LogLevel.INFO, "Memory space released: [PID=" + pid + "]");
     }
@@ -1785,10 +1989,11 @@ public final class MemoryManager {
      * @throws ForgeOSException 프로세스가 등록되지 않았거나 물리 메모리가 부족한 경우
      */
     public synchronized long malloc(int pid, long size) {
-        Heap heap = heaps.get(pid);
-        if (heap == null) {
+        VirtualAddressSpace addressSpace = addressSpaces.get(pid);
+        if (addressSpace == null) {
             throw new ForgeOSException("등록되지 않은 프로세스입니다: PID " + pid);
         }
+        Heap heap = addressSpace.getHeap();
 
         Long address = heap.allocate(size);
         if (address != null) {
@@ -1796,7 +2001,7 @@ public final class MemoryManager {
             return address;
         }
 
-        growHeapForAllocation(pid, heap, size);
+        growHeapForAllocation(pid, addressSpace, size);
 
         address = heap.allocate(size);
         if (address == null) {
@@ -1807,7 +2012,10 @@ public final class MemoryManager {
         return address;
     }
 
-    private void growHeapForAllocation(int pid, Heap heap, long size) {
+    private void growHeapForAllocation(int pid, VirtualAddressSpace addressSpace, long size) {
+        Heap heap = addressSpace.getHeap();
+        PageTable pageTable = addressSpace.getPageTable();
+
         int pageSize = physicalMemory.getFrameSize();
         long endFree = heap.getEndFreeSize();
         long actualNeeded = Math.max(0, size - endFree);
@@ -1815,12 +2023,14 @@ public final class MemoryManager {
         long newCapacity = heap.getCapacity() + actualNeeded;
         int pagesNeeded = (int) (ceilDiv(newCapacity, pageSize) - ceilDiv(heap.getCapacity(), pageSize));
 
-        PageTable pageTable = pageTables.get(pid);
         int startPage = (int) (heap.getCapacity() / pageSize);
 
         List<Integer> newFrames = new ArrayList<>();
         for (int i = 0; i < pagesNeeded; i++) {
-            Frame frame = physicalMemory.allocateFrame(pid);
+            int pageNumber = startPage + i;
+            // 프레임 할당과 동시에 pageNumber를 넘겨서, Frame Table이 바로 역조회
+            // 가능한 상태(어느 pid의 어느 페이지인지)로 만들어둔다.
+            Frame frame = physicalMemory.allocateFrame(pid, pageNumber);
             if (frame == null) {
                 // 부분 확보 상태로 남기지 않도록 지금까지 확보한 프레임을 전부 되돌린다.
                 for (int frameNumber : newFrames) {
@@ -1829,10 +2039,7 @@ public final class MemoryManager {
                 throw new ForgeOSException("메모리가 부족합니다 (물리 프레임 부족)");
             }
             newFrames.add(frame.getFrameNumber());
-        }
-
-        for (int i = 0; i < newFrames.size(); i++) {
-            pageTable.map(startPage + i, newFrames.get(i));
+            pageTable.map(pageNumber, frame.getFrameNumber());
         }
 
         heap.grow((long) pagesNeeded * pageSize);
@@ -1850,11 +2057,11 @@ public final class MemoryManager {
      * @throws ForgeOSException 프로세스가 등록되지 않았거나 유효하지 않은 주소인 경우
      */
     public synchronized void free(int pid, long address) {
-        Heap heap = heaps.get(pid);
-        if (heap == null) {
+        VirtualAddressSpace addressSpace = addressSpaces.get(pid);
+        if (addressSpace == null) {
             throw new ForgeOSException("등록되지 않은 프로세스입니다: PID " + pid);
         }
-        heap.free(address);
+        addressSpace.getHeap().free(address);
         logger.log(LogLevel.INFO, "Memory freed: [PID=" + pid + "] address=" + address);
     }
 
@@ -1868,14 +2075,15 @@ public final class MemoryManager {
      * @throws ForgeOSException 프로세스가 등록되지 않았거나 매핑되지 않은 주소인 경우
      */
     public synchronized TranslationResult translate(int pid, long virtualAddress) {
-        PageTable pageTable = pageTables.get(pid);
-        if (pageTable == null) {
+        VirtualAddressSpace addressSpace = addressSpaces.get(pid);
+        if (addressSpace == null) {
             throw new ForgeOSException("등록되지 않은 프로세스입니다: PID " + pid);
         }
         if (virtualAddress < 0) {
             throw new ForgeOSException("가상 주소는 0 이상이어야 합니다.");
         }
 
+        PageTable pageTable = addressSpace.getPageTable();
         int pageSize = physicalMemory.getFrameSize();
         int pageNumber = (int) (virtualAddress / pageSize);
         int offset = (int) (virtualAddress % pageSize);
@@ -1899,8 +2107,8 @@ public final class MemoryManager {
      */
     public synchronized MemorySnapshot getSnapshot() {
         Map<Integer, HeapSnapshot> heapSnapshots = new LinkedHashMap<>();
-        for (Map.Entry<Integer, Heap> entry : heaps.entrySet()) {
-            Heap heap = entry.getValue();
+        for (Map.Entry<Integer, VirtualAddressSpace> entry : addressSpaces.entrySet()) {
+            Heap heap = entry.getValue().getHeap();
             heapSnapshots.put(entry.getKey(), new HeapSnapshot(
                     entry.getKey(), heap.getCapacity(), heap.getUsedBytes(), heap.getFreeBytes()
             ));
@@ -1917,12 +2125,27 @@ public final class MemoryManager {
                 tlb.getHitRatio()
         );
     }
+
+    /**
+     * 물리 프레임 전체의 현재 상태를 프레임 번호 순서로 스냅샷 반환한다
+     * ({@code frametable} 명령용 데이터). Kernel/MemoryManager는 순수 데이터만
+     * 반환하고, 표로 꾸미는 건 FrameTableCommand(Shell 계층)의 책임이다.
+     */
+    public synchronized List<FrameInfo> getFrameTableSnapshot() {
+        List<FrameInfo> snapshot = new ArrayList<>();
+        for (Frame frame : physicalMemory.getFrameTable().getAllFrames()) {
+            snapshot.add(new FrameInfo(
+                    frame.getFrameNumber(), frame.isAllocated(), frame.getOwnerPid(), frame.getPageNumber()
+            ));
+        }
+        return snapshot;
+    }
 }
 ```
 
 ---
 
-# 32. memory/MemorySnapshot.java
+# 35. memory/MemorySnapshot.java
 
 **Path**
 `src/main/java/forgeframework/memory/MemorySnapshot.java`
@@ -1954,7 +2177,7 @@ public record MemorySnapshot(
 
 ---
 
-# 33. memory/PageTable.java
+# 36. memory/PageTable.java
 
 **Path**
 `src/main/java/forgeframework/memory/PageTable.java`
@@ -2006,7 +2229,7 @@ public final class PageTable {
 
 ---
 
-# 34. memory/PhysicalMemory.java
+# 37. memory/PhysicalMemory.java
 
 **Path**
 `src/main/java/forgeframework/memory/PhysicalMemory.java`
@@ -2017,36 +2240,29 @@ package forgeframework.memory;
 /**
  * 시뮬레이션할 물리 메모리 전체.
  *
- * <p>고정 개수의 {@link Frame} 배열로 표현되며, 실제 RAM처럼 유한한 크기를 갖는다.
- * frame 할당은 first-fit(첫 번째로 비어있는 프레임)으로 수행한다.</p>
+ * <p>실제 프레임 배열/할당 로직은 {@link FrameTable}에 위임한다(composition).
+ * "물리 메모리"와 "프레임 테이블"은 실제 OS 교재에서도 사실상 같은 자료구조를
+ * 가리키는 경우가 많은데, 여기서는 프레임 번호로 소유자/페이지를 역조회하는 기능을
+ * 별도 클래스로 명시적으로 분리해서 노출하기 위해 두 클래스로 나눠두었다. frame 할당은
+ * 여전히 first-fit(첫 번째로 비어있는 프레임)으로 수행한다.</p>
  */
 public final class PhysicalMemory {
 
-    private final Frame[] frames;
-    private final int frameSize;
+    private final FrameTable frameTable;
 
     public PhysicalMemory(int totalFrames, int frameSize) {
-        this.frameSize = frameSize;
-        this.frames = new Frame[totalFrames];
-        for (int i = 0; i < totalFrames; i++) {
-            frames[i] = new Frame(i);
-        }
+        this.frameTable = new FrameTable(totalFrames, frameSize);
     }
 
     /**
-     * 비어있는 프레임 하나를 찾아 pid에게 할당한다.
+     * 비어있는 프레임 하나를 찾아 pid의 pageNumber에 할당한다.
      *
-     * @param pid 프레임을 사용할 프로세스의 pid
+     * @param pid        프레임을 사용할 프로세스의 pid
+     * @param pageNumber 이 프레임이 매핑될 가상 페이지 번호 (Frame Table 역조회에 사용됨)
      * @return 할당된 프레임, 남은 프레임이 없으면 null
      */
-    public Frame allocateFrame(int pid) {
-        for (Frame frame : frames) {
-            if (!frame.isAllocated()) {
-                frame.allocate(pid);
-                return frame;
-            }
-        }
-        return null;
+    public Frame allocateFrame(int pid, int pageNumber) {
+        return frameTable.allocate(pid, pageNumber);
     }
 
     /**
@@ -2055,36 +2271,38 @@ public final class PhysicalMemory {
      * @param frameNumber 반납할 프레임 번호
      */
     public void freeFrame(int frameNumber) {
-        frames[frameNumber].release();
+        frameTable.free(frameNumber);
     }
 
     public int getFrameSize() {
-        return frameSize;
+        return frameTable.getFrameSize();
     }
 
     public int getTotalFrames() {
-        return frames.length;
+        return frameTable.getTotalFrames();
     }
 
     public int getUsedFrameCount() {
-        int count = 0;
-        for (Frame frame : frames) {
-            if (frame.isAllocated()) {
-                count++;
-            }
-        }
-        return count;
+        return frameTable.getUsedCount();
     }
 
     public int getFreeFrameCount() {
-        return frames.length - getUsedFrameCount();
+        return frameTable.getFreeCount();
+    }
+
+    /**
+     * 프레임 번호로 소유자/페이지를 역조회해야 하는 곳(frametable 명령 등)에서
+     * 사용할 FrameTable 참조를 반환한다.
+     */
+    public FrameTable getFrameTable() {
+        return frameTable;
     }
 }
 ```
 
 ---
 
-# 35. memory/Tlb.java
+# 38. memory/Tlb.java
 
 **Path**
 `src/main/java/forgeframework/memory/Tlb.java`
@@ -2174,7 +2392,7 @@ public final class Tlb {
 
 ---
 
-# 36. memory/TranslationResult.java
+# 39. memory/TranslationResult.java
 
 **Path**
 `src/main/java/forgeframework/memory/TranslationResult.java`
@@ -2199,7 +2417,54 @@ public record TranslationResult(
 
 ---
 
-# 37. process/Process.java
+# 40. memory/VirtualAddressSpace.java
+
+**Path**
+`src/main/java/forgeframework/memory/VirtualAddressSpace.java`
+
+```java
+package forgeframework.memory;
+
+/**
+ * 프로세스 하나의 가상 주소 공간 전체를 표현한다.
+ *
+ * <p>지금까지는 {@link MemoryManager}가 {@code Map<Integer, Heap>}과
+ * {@code Map<Integer, PageTable>} 두 개의 별도 Map을 병렬로 관리했는데, 이 둘은
+ * 항상 같은 pid에 대해 함께 생성되고 함께 제거되는 "한 프로세스의 가상 메모리"라는
+ * 하나의 개념이다. 두 Map을 따로 관리하면 이론적으로 한쪽만 등록/해제되는 불일치가
+ * 생길 여지가 있는데, 이 클래스로 묶어서 pid 하나당 Map 엔트리 하나만 존재하도록
+ * 단순화했다.</p>
+ *
+ * <p>추후 Stack이 추가되면 이 클래스가 Heap과 함께 Stack도 소유하게 될 것이다
+ * (지금은 Phase 3.5 범위에서 제외).</p>
+ */
+public final class VirtualAddressSpace {
+
+    private final int pid;
+    private final Heap heap = new Heap();
+    private final PageTable pageTable = new PageTable();
+
+    public VirtualAddressSpace(int pid) {
+        this.pid = pid;
+    }
+
+    public int getPid() {
+        return pid;
+    }
+
+    public Heap getHeap() {
+        return heap;
+    }
+
+    public PageTable getPageTable() {
+        return pageTable;
+    }
+}
+```
+
+---
+
+# 41. process/Process.java
 
 **Path**
 `src/main/java/forgeframework/process/Process.java`
@@ -2223,7 +2488,7 @@ public class Process {
 
 ---
 
-# 38. process/ProcessControlBlock.java
+# 42. process/ProcessControlBlock.java
 
 **Path**
 `src/main/java/forgeframework/process/ProcessControlBlock.java`
@@ -2300,7 +2565,7 @@ public class ProcessControlBlock {
 
 ---
 
-# 39. process/ProcessManager.java
+# 43. process/ProcessManager.java
 
 **Path**
 `src/main/java/forgeframework/process/ProcessManager.java`
@@ -2523,7 +2788,7 @@ public class ProcessManager {
 
 ---
 
-# 40. process/ProcessState.java
+# 44. process/ProcessState.java
 
 **Path**
 `src/main/java/forgeframework/process/ProcessState.java`
@@ -2542,7 +2807,7 @@ public enum ProcessState {
 
 ---
 
-# 41. process/scheduler/FcfsScheduler.java
+# 45. process/scheduler/FcfsScheduler.java
 
 **Path**
 `src/main/java/forgeframework/process/scheduler/FcfsScheduler.java`
@@ -2598,7 +2863,7 @@ public class FcfsScheduler implements Scheduler {
 
 ---
 
-# 42. process/scheduler/RoundRobinScheduler.java
+# 46. process/scheduler/RoundRobinScheduler.java
 
 **Path**
 `src/main/java/forgeframework/process/scheduler/RoundRobinScheduler.java`
@@ -2654,7 +2919,7 @@ public class RoundRobinScheduler implements Scheduler {
 
 ---
 
-# 43. process/scheduler/Scheduler.java
+# 47. process/scheduler/Scheduler.java
 
 **Path**
 `src/main/java/forgeframework/process/scheduler/Scheduler.java`
@@ -2707,7 +2972,7 @@ public interface Scheduler {
 
 ---
 
-# 44. shell/ForgeShell.java
+# 48. shell/ForgeShell.java
 
 **Path**
 `src/main/java/forgeframework/shell/ForgeShell.java`
@@ -2728,6 +2993,7 @@ import forgeframework.command.MallocCommand;
 import forgeframework.command.FreeCommand;
 import forgeframework.command.MeminfoCommand;
 import forgeframework.command.TranslateCommand;
+import forgeframework.command.FrameTableCommand;
 import forgeframework.common.ForgeOSConstants;
 import forgeframework.kernel.Kernel;
 import forgeframework.syscall.SystemCallResult;
@@ -2762,6 +3028,7 @@ public class ForgeShell {
         registry.register(new FreeCommand());
         registry.register(new MeminfoCommand());
         registry.register(new TranslateCommand());
+        registry.register(new FrameTableCommand());
     }
 
     public void run() {
@@ -2802,7 +3069,7 @@ public class ForgeShell {
 
 ---
 
-# 45. shell/ShellPrompt.java
+# 49. shell/ShellPrompt.java
 
 **Path**
 `src/main/java/forgeframework/shell/ShellPrompt.java`
@@ -2833,7 +3100,7 @@ public class ShellPrompt {
 
 ---
 
-# 46. syscall/SystemCallRequest.java
+# 50. syscall/SystemCallRequest.java
 
 **Path**
 `src/main/java/forgeframework/syscall/SystemCallRequest.java`
@@ -2873,7 +3140,7 @@ public final class SystemCallRequest {
 
 ---
 
-# 47. syscall/SystemCallResult.java
+# 51. syscall/SystemCallResult.java
 
 **Path**
 `src/main/java/forgeframework/syscall/SystemCallResult.java`
@@ -2927,7 +3194,7 @@ public final class SystemCallResult {
 
 ---
 
-# 48. syscall/SystemCallType.java
+# 52. syscall/SystemCallType.java
 
 **Path**
 `src/main/java/forgeframework/syscall/SystemCallType.java`
@@ -2946,7 +3213,8 @@ public enum SystemCallType {
     MALLOC,
     FREE,
     MEMINFO,
-    TRANSLATE
+    TRANSLATE,
+    FRAMETABLE
 }
 ```
 
