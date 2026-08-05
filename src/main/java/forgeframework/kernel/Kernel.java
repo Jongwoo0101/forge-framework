@@ -4,6 +4,7 @@ import forgeframework.common.ForgeOSConstants;
 import forgeframework.exception.ForgeOSException;
 import forgeframework.logger.EventLogger;
 import forgeframework.logger.LogLevel;
+import forgeframework.memory.FrameInfo;
 import forgeframework.memory.MemoryManager;
 import forgeframework.memory.MemorySnapshot;
 import forgeframework.memory.TranslationResult;
@@ -19,6 +20,7 @@ import forgeframework.syscall.SystemCallType;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 
 /**
  * ForgeOS의 유일한 관리자(Kernel).
@@ -105,6 +107,7 @@ public final class Kernel {
             case FREE -> handleFree(request.getArgs());
             case MEMINFO -> handleMeminfo();
             case TRANSLATE -> handleTranslate(request.getArgs());
+            case FRAMETABLE -> handleFrameTable();
         };
     }
 
@@ -309,6 +312,19 @@ public final class Kernel {
         } catch (ForgeOSException e) {
             return SystemCallResult.failure(e.getMessage());
         }
+    }
+
+    /**
+     * 물리 프레임 전체의 상태(할당 여부, 소유 pid, 매핑된 페이지 번호)를 반환한다
+     * (Frame Table을 직접 확인하기 위한 명령). 표 형태로 꾸미는 것은
+     * FrameTableCommand(Shell 계층)의 책임이라, 여기서는 순수 데이터만 반환한다.
+     */
+    private SystemCallResult handleFrameTable() {
+        if (memoryManager == null) {
+            return SystemCallResult.failure("MemoryManager가 로드되지 않았습니다.");
+        }
+        List<FrameInfo> snapshot = memoryManager.getFrameTableSnapshot();
+        return SystemCallResult.success("", snapshot);
     }
 
     private String formatDuration(Duration duration) {
