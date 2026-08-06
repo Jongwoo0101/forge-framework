@@ -1,6 +1,7 @@
 package forgeframework.boot;
 
 import forgeframework.common.ForgeOSConstants;
+import forgeframework.filesystem.FileSystemManager;
 import forgeframework.hardware.HardwareTimer;
 import forgeframework.kernel.Kernel;
 import forgeframework.logger.EventLogger;
@@ -54,6 +55,14 @@ public class BootManager {
 
             kernel.registerProcessManager(processManager);
             kernel.registerMemoryManager(memoryManager);
+
+            FileSystemManager fileSystemManager = new FileSystemManager(
+                    logger,
+                    ForgeOSConstants.TOTAL_BLOCKS,
+                    ForgeOSConstants.BLOCK_SIZE,
+                    ForgeOSConstants.TOTAL_INODES
+            );
+            kernel.registerFileSystemManager(fileSystemManager);
 
             timer = new HardwareTimer(kernel);
             timer.start();

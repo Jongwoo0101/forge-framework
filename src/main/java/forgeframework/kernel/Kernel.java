@@ -2,6 +2,11 @@ package forgeframework.kernel;
 
 import forgeframework.common.ForgeOSConstants;
 import forgeframework.exception.ForgeOSException;
+import forgeframework.filesystem.DirectoryEntryDto;
+import forgeframework.filesystem.FileContentDto;
+import forgeframework.filesystem.FileListDto;
+import forgeframework.filesystem.FileSystemManager;
+import forgeframework.filesystem.TreeNodeDto;
 import forgeframework.logger.EventLogger;
 import forgeframework.logger.LogLevel;
 import forgeframework.memory.FrameInfo;
@@ -39,6 +44,7 @@ public final class Kernel {
 
     private ProcessManager processManager;
     private MemoryManager memoryManager;
+    private FileSystemManager fileSystemManager;
 
     private Kernel(EventLogger logger) {
         this.logger = logger;
@@ -82,6 +88,16 @@ public final class Kernel {
     }
 
     /**
+     * FileSystemManager를 커널에 등록한다.
+     * BootManager의 SUBSYSTEM_INIT 단계에서 호출된다.
+     *
+     * @param fileSystemManager 등록할 파일 시스템 매니저
+     */
+    public void registerFileSystemManager(FileSystemManager fileSystemManager) {
+        this.fileSystemManager = fileSystemManager;
+    }
+
+    /**
      * HardwareTimer로부터 발생하는 타이머 인터럽트를 처리한다.
      * ProcessManager에게 인터럽트 발생을 알려 Context Switch 등의 스케줄링을 유도한다.
      */
@@ -108,6 +124,14 @@ public final class Kernel {
             case MEMINFO -> handleMeminfo();
             case TRANSLATE -> handleTranslate(request.getArgs());
             case FRAMETABLE -> handleFrameTable();
+            case CD -> handleCd(request.getArgs());
+            case LS -> handleLs(request.getArgs());
+            case MKDIR -> handleMkdir(request.getArgs());
+            case TOUCH -> handleTouch(request.getArgs());
+            case RM -> handleRm(request.getArgs());
+            case WRITE -> handleWrite(request.getArgs());
+            case CAT -> handleCat(request.getArgs());
+            case TREE -> handleTree(request.getArgs());
         };
     }
 
@@ -325,6 +349,153 @@ public final class Kernel {
         }
         List<FrameInfo> snapshot = memoryManager.getFrameTableSnapshot();
         return SystemCallResult.success("", snapshot);
+    }
+
+    /**
+     * targetPath가 유효한 디렉터리인지 확인하고, 해석된 절대경로를 데이터로 반환한다.
+     * 사용법: cd &lt;path&gt;. args = [cwd, targetPath]
+     */
+    private SystemCallResult handleCd(String[] args) {
+        if (fileSystemManager == null) {
+            return SystemCallResult.failure("FileSystemManager가 로드되지 않았습니다.");
+        }
+        if (args.length < 2) {
+            return SystemCallResult.failure("사용법: cd <path>");
+        }
+        try {
+            String resolved = fileSystemManager.cd(args[0], args[1]);
+            return SystemCallResult.success(resolved, resolved);
+        } catch (ForgeOSException e) {
+            return SystemCallResult.failure(e.getMessage());
+        }
+    }
+
+    /**
+     * 디렉터리 내용을 나열한다. 표로 꾸미는 것은 LsCommand(Shell 계층)의 책임이라,
+     * 여기서는 FileListDto(순수 데이터)만 반환한다. args = [cwd, targetPath]
+     */
+    private SystemCallResult handleLs(String[] args) {
+        if (fileSystemManager == null) {
+            return SystemCallResult.failure("FileSystemManager가 로드되지 않았습니다.");
+        }
+        if (args.length < 2) {
+            return SystemCallResult.failure("사용법: ls [path]");
+        }
+        try {
+            FileListDto dto = fileSystemManager.ls(args[0], args[1]);
+            return SystemCallResult.success("", dto);
+        } catch (ForgeOSException e) {
+            return SystemCallResult.failure(e.getMessage());
+        }
+    }
+
+    /**
+     * 새 디렉터리를 생성한다. args = [cwd, targetPath]
+     */
+    private SystemCallResult handleMkdir(String[] args) {
+        if (fileSystemManager == null) {
+            return SystemCallResult.failure("FileSystemManager가 로드되지 않았습니다.");
+        }
+        if (args.length < 2) {
+            return SystemCallResult.failure("사용법: mkdir <name>");
+        }
+        try {
+            DirectoryEntryDto dto = fileSystemManager.mkdir(args[0], args[1]);
+            return SystemCallResult.success("", dto);
+        } catch (ForgeOSException e) {
+            return SystemCallResult.failure(e.getMessage());
+        }
+    }
+
+    /**
+     * 크기 0인 빈 파일을 생성한다 (이미 있으면 조용히 성공). args = [cwd, targetPath]
+     */
+    private SystemCallResult handleTouch(String[] args) {
+        if (fileSystemManager == null) {
+            return SystemCallResult.failure("FileSystemManager가 로드되지 않았습니다.");
+        }
+        if (args.length < 2) {
+            return SystemCallResult.failure("사용법: touch <name>");
+        }
+        try {
+            DirectoryEntryDto dto = fileSystemManager.touch(args[0], args[1]);
+            return SystemCallResult.success("", dto);
+        } catch (ForgeOSException e) {
+            return SystemCallResult.failure(e.getMessage());
+        }
+    }
+
+    /**
+     * 파일 또는 비어있는 디렉터리를 삭제한다. args = [cwd, targetPath]
+     */
+    private SystemCallResult handleRm(String[] args) {
+        if (fileSystemManager == null) {
+            return SystemCallResult.failure("FileSystemManager가 로드되지 않았습니다.");
+        }
+        if (args.length < 2) {
+            return SystemCallResult.failure("사용법: rm <name>");
+        }
+        try {
+            fileSystemManager.rm(args[0], args[1]);
+            return SystemCallResult.success("삭제되었습니다: " + args[1]);
+        } catch (ForgeOSException e) {
+            return SystemCallResult.failure(e.getMessage());
+        }
+    }
+
+    /**
+     * 파일 내용을 덮어쓴다. args = [cwd, targetPath, content]
+     */
+    private SystemCallResult handleWrite(String[] args) {
+        if (fileSystemManager == null) {
+            return SystemCallResult.failure("FileSystemManager가 로드되지 않았습니다.");
+        }
+        if (args.length < 3) {
+            return SystemCallResult.failure("사용법: write <name> <text>");
+        }
+        try {
+            int written = fileSystemManager.write(args[0], args[1], args[2]);
+            return SystemCallResult.success(written + "바이트 기록됨", written);
+        } catch (ForgeOSException e) {
+            return SystemCallResult.failure(e.getMessage());
+        }
+    }
+
+    /**
+     * 파일 내용을 읽는다. args = [cwd, targetPath]
+     */
+    private SystemCallResult handleCat(String[] args) {
+        if (fileSystemManager == null) {
+            return SystemCallResult.failure("FileSystemManager가 로드되지 않았습니다.");
+        }
+        if (args.length < 2) {
+            return SystemCallResult.failure("사용법: cat <name>");
+        }
+        try {
+            FileContentDto dto = fileSystemManager.cat(args[0], args[1]);
+            return SystemCallResult.success("", dto);
+        } catch (ForgeOSException e) {
+            return SystemCallResult.failure(e.getMessage());
+        }
+    }
+
+    /**
+     * 경로 하위 전체를 재귀적으로 탐색해 트리 구조(DTO)를 반환한다.
+     * 렌더링(├──/└── 등)은 TreeCommand(Shell 계층)의 책임이다. args = [cwd, targetPath]
+     */
+    private SystemCallResult handleTree(String[] args) {
+        if (fileSystemManager == null) {
+            return SystemCallResult.failure("FileSystemManager가 로드되지 않았습니다.");
+        }
+        if (args.length < 2) {
+            return SystemCallResult.failure("사용법: tree [path]");
+        }
+        try {
+            TreeNodeDto dto = fileSystemManager.tree(args[0], args[1]);
+            return SystemCallResult.success("", dto);
+        } catch (ForgeOSException e) {
+            return SystemCallResult.failure(e.getMessage());
+        }
     }
 
     private String formatDuration(Duration duration) {

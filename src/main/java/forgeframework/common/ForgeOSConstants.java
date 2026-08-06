@@ -12,10 +12,16 @@ public final class ForgeOSConstants {
     public static final String OS_NAME = "ForgeFramework";
 
     /** OS 버전. */
-    public static final String OS_VERSION = "1.0-phase3.5";
+    public static final String OS_VERSION = "1.0-phase4";
 
-    /** Shell 프롬프트 기본 문자열. */
-    public static final String SHELL_PROMPT = "forgeframework> ";
+    /**
+     * Shell 프롬프트 접두사. 실제 프롬프트는 ShellPrompt가
+     * {@code PREFIX + ":" + cwd + SUFFIX} 형태로 CWD를 반영해 렌더링한다.
+     */
+    public static final String SHELL_PROMPT_PREFIX = "forgeframework";
+
+    /** Shell 프롬프트 접미사. */
+    public static final String SHELL_PROMPT_SUFFIX = "> ";
 
     /** 부팅 단계 사이의 연출용 대기 시간(ms). */
     public static final long BOOT_STAGE_DELAY_MS = 150L;
@@ -40,6 +46,15 @@ public final class ForgeOSConstants {
 
     /** TLB가 캐싱할 수 있는 (pid, 페이지) 항목 최대 개수. */
     public static final int TLB_CAPACITY = 4;
+
+    /** 가상 디스크의 블록 하나 크기(byte). */
+    public static final int BLOCK_SIZE = 16;
+
+    /** 가상 디스크의 총 블록 개수. */
+    public static final int TOTAL_BLOCKS = 16;
+
+    /** 파일 시스템의 총 inode 개수 (루트 디렉터리 포함). */
+    public static final int TOTAL_INODES = 16;
 
     private ForgeOSConstants() {
         // 인스턴스화 방지

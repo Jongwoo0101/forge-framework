@@ -12,5 +12,13 @@ public enum SystemCallType {
     FREE,
     MEMINFO,
     TRANSLATE,
-    FRAMETABLE
+    FRAMETABLE,
+    CD,
+    LS,
+    MKDIR,
+    TOUCH,
+    RM,
+    WRITE,
+    CAT,
+    TREE
 }
