@@ -256,24 +256,37 @@ Of the items left over from Phase 3, these two could be implemented independentl
 - `malloc` now passes the `pageNumber` directly at the moment a frame is reserved, so the Frame Table always reflects accurate owner/page information
 ---
 
-## 🔜 Phase 4 — File System
+## ✅ Phase 4 — File System (Completed)
 
-- Virtual Disk (disk.img)
-- Super Block
-- Bitmap
-- inode
-- Directory
-- Data Block
+### FileSystemManager
 
-Planned shell commands
+- Doesn't control real hardware, but builds a virtual disk space in memory and simulates a UNIX-style Inode-based file system in an object-oriented way
+- Owns path resolution: walks Inodes sequentially from the root, supporting both absolute paths (`/a/b/c`) and relative paths (`.`, `..`)
+- A Facade responsible for disk formatting (initialization), and file/directory create, delete, read, and write operations
+- **Stateless by design** — every method receives the CWD as an argument rather than storing it internally; CWD is owned solely by the Shell layer (`ShellContext`)
 
-- ls
-- mkdir
-- touch
-- rm
-- cat
-- write
-- tree
+### Virtual Disk & Hardware Virtualization Layer
+
+- `VirtualDisk` — a virtual disk made of a fixed-size Data Block array (16 blocks × 16 bytes by default). Works directly with `byte[]`, converting strings to bytes on write
+- `SuperBlock` — holds file-system metadata: total block count, block size, total inode count, free block count, the root (`/`) inode number, etc.
+- `Bitmap` — runs both an `InodeBitmap` and a `DataBlockBitmap` to track allocation state for inodes and data blocks. When resources are exhausted, it responds with a clear failure message rather than throwing
+
+### Inode & Directory
+
+- `Inode` — holds only metadata for a file/directory (`inodeNumber`, `type`, `size`, `directBlocks`). File names are not stored here
+- `Directory` — a separate object owning the name ↔ inode-number mapping (`Map<String, Integer>`). Directories are themselves inodes, but for simulation convenience the Inode wraps this object
+- `InodeType` — distinguishes `FILE` from `DIRECTORY`
+
+### DTOs (Data Transfer Objects)
+
+- `DirectoryEntryDto`, `FileListDto`, `FileContentDto`, `TreeNodeDto` — plain data structures the Kernel returns to the Command layer, following the same stateless-API design principle intended for future frontend integration
+
+### Shell Integration
+
+- `ShellContext` owns the CWD state (`String currentWorkingDirectory`) and passes it along with every system call
+- `ShellPrompt` was reworked so the prompt reflects the CWD live, e.g. `forgeframework:/usr/local> `
+
+> The virtual disk is currently a pure in-memory structure. Disk contents are lost when the process exits; persisting to an actual `disk.img` file is not implemented yet.
 
 ---
 
@@ -322,14 +335,14 @@ forgeframework
 ├── memory                   # PhysicalMemory, FrameTable, VirtualAddressSpace, Heap, PageTable, Tlb
 ├── process                  # PCB, Process, ProcessManager, ProcessState
 │   └── scheduler             # Scheduler (Strategy), FcfsScheduler, RoundRobinScheduler
-├── shell                    # ForgeShell
+├── filesystem                # VirtualDisk, SuperBlock, Bitmap, Inode, Directory, FileSystemManager, DTOs
+├── shell                    # ForgeShell, ShellContext (CWD state), ShellPrompt
 └── syscall                  # System Call Layer
 ```
 
 Additional packages planned in future phases:
 
 ```text
-filesystem
 interrupt
 device
 deadlock
@@ -337,7 +350,7 @@ deadlock
 
 ---
 
-# Supported Commands (Phase 3.5)
+# Supported Commands (Phase 4)
 
 | Command | Description |
 |----------|-------------|
@@ -352,17 +365,20 @@ deadlock
 | meminfo | Show physical memory / per-process heap / TLB usage |
 | translate \<pid> \<vaddr> | Translate a virtual address to a physical address (inspect Paging + TLB) |
 | frametable | Show the physical frame table (per-frame owner/page mapping) |
+| pwd | Print the current working directory (CWD) as an absolute path |
+| cd \<path> | Change directory (supports absolute/relative paths, `.`, `..`) |
+| ls [path] | List files/directories in the CWD or a given path |
+| mkdir \<name> | Create a new directory |
+| touch \<name> | Create an empty (0-byte) file; succeeds without error even if it already exists |
+| rm \<name> | Delete a file or an empty directory |
+| write \<name> \<text> | Overwrite a file's contents (fails cleanly on disk/inode exhaustion) |
+| cat \<name> | Print a file's contents |
+| tree [path] | Print the directory structure as a hierarchical tree |
 | shutdown | Shut down the simulator |
 
 Planned commands
 
 - fork
-- ls
-- mkdir
-- touch
-- rm
-- cat
-- write
 - deadlock
 
 ---

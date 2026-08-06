@@ -236,24 +236,37 @@ Phase 3에서 남겨뒀던 항목 중 File System(Phase 4)과 무관하게 독�
 
 ---
 
-## 🔜 Phase 4 — File System
+## ✅ Phase 4 — File System (완료)
 
-- Virtual Disk (disk.img)
-- Super Block
-- Bitmap
-- inode
-- Directory
-- Data Block
+### FileSystemManager
 
-지원 예정 명령어
+- 물리 디스크를 제어하지는 않지만, 메모리 상에 가상 디스크 공간을 만들어 UNIX 계열의 Inode 기반 파일 시스템을 객체지향적으로 시뮬레이션
+- 경로 해석(Path Resolution)을 전담: 절대경로(`/a/b/c`)와 상대경로(`.`, `..`)를 모두 지원하며, 루트부터 순차적으로 Inode를 탐색
+- 디스크 포맷(초기화), 파일/디렉터리 생성·삭제·읽기·쓰기를 전담하는 Facade
+- 모든 메서드가 CWD를 인자로 전달받을 뿐 내부에 CWD 상태를 갖지 않는 **Stateless 설계** — CWD는 오직 Shell 계층(`ShellContext`)만 소유
 
-- ls
-- mkdir
-- touch
-- rm
-- cat
-- write
-- tree
+### Virtual Disk & 하드웨어 가상화 계층
+
+- `VirtualDisk` — 고정 크기 Data Block 배열(기본 16블록 × 16바이트)로 구성된 가상 디스크. `byte[]`를 직접 다루어 문자열을 바이트로 변환해 저장
+- `SuperBlock` — 총 블록 수, 블록 크기, Inode 총 개수, 빈 블록 수, 루트(`/`) Inode 번호 등 파일 시스템 메타데이터 관리
+- `Bitmap` — `InodeBitmap`/`DataBlockBitmap` 두 종류를 운용하며 Inode·Data Block의 할당/해제 상태를 추적. 자원이 고갈되면 예외 없이 명확한 실패 메시지로 응답
+
+### Inode & Directory
+
+- `Inode` — 파일/디렉터리의 메타데이터(`inodeNumber`, `type`, `size`, `directBlocks`)만 담당. 파일 이름은 저장하지 않음
+- `Directory` — 이름 ↔ Inode 번호 매핑(`Map<String, Integer>`)을 담당하는 별도 객체. 디렉터리도 하나의 Inode로 취급되지만 시뮬레이션 편의를 위해 Inode가 이 객체를 래핑
+- `InodeType` — `FILE`/`DIRECTORY` 구분
+
+### DTO (Data Transfer Object)
+
+- `DirectoryEntryDto`, `FileListDto`, `FileContentDto`, `TreeNodeDto` — Kernel이 Command 계층으로 반환하는 순수 데이터 구조체. 프론트엔드 연동을 염두에 둔 무상태 API 설계 원칙을 그대로 따름
+
+### Shell 연동
+
+- `ShellContext`가 CWD(`String currentWorkingDirectory`) 상태를 전담 관리하며, 매 시스템 콜마다 인자로 함께 전달
+- 프롬프트가 `forgeframework:/usr/local> `처럼 CWD를 실시간으로 반영하도록 `ShellPrompt`를 개편
+
+> 현재 가상 디스크는 순수 인메모리 구조입니다. 프로세스를 종료하면 디스크 내용도 함께 사라지며, 실제 `disk.img` 파일로 영속화하는 기능은 아직 없습니다.
 
 ---
 
@@ -302,14 +315,14 @@ forgeframework
 ├── memory                   # PhysicalMemory, FrameTable, VirtualAddressSpace, Heap, PageTable, Tlb
 ├── process                  # PCB, Process, ProcessManager, ProcessState
 │   └── scheduler             # Scheduler(Strategy), FcfsScheduler, RoundRobinScheduler
-├── shell                    # ForgeShell
+├── filesystem                # VirtualDisk, SuperBlock, Bitmap, Inode, Directory, FileSystemManager, DTO
+├── shell                    # ForgeShell, ShellContext(CWD 상태), ShellPrompt
 └── syscall                  # System Call Layer
 ```
 
 Phase가 진행됨에 따라 아래 패키지가 추가될 예정입니다.
 
 ```text
-filesystem
 interrupt
 device
 deadlock
@@ -317,7 +330,7 @@ deadlock
 
 ---
 
-# 지원 명령어 (Phase 3.5 기준)
+# 지원 명령어 (Phase 4 기준)
 
 | 명령어 | 설명 |
 |--------|------|
@@ -332,17 +345,20 @@ deadlock
 | meminfo | 물리 메모리/프로세스별 힙/TLB 사용 현황 출력 |
 | translate \<pid> \<vaddr> | 가상 주소를 물리 주소로 변환 (Paging + TLB 동작 확인용) |
 | frametable | 물리 프레임 테이블(프레임별 소유자/페이지 매핑) 출력 |
+| pwd | 현재 작업 디렉터리(CWD) 절대 경로 출력 |
+| cd \<path> | 디렉터리 이동 (절대/상대경로, `.`, `..` 지원) |
+| ls [path] | CWD 또는 지정 경로의 파일/디렉터리 목록 출력 |
+| mkdir \<name> | 새 디렉터리 생성 |
+| touch \<name> | 크기 0인 빈 파일 생성 (이미 존재해도 에러 없이 성공) |
+| rm \<name> | 파일 또는 비어있는 디렉터리 삭제 |
+| write \<name> \<text> | 파일 내용 덮어쓰기 (디스크/inode 용량 초과 시 실패 처리) |
+| cat \<name> | 파일 내용 출력 |
+| tree [path] | 디렉터리 구조를 계층적 트리로 출력 |
 | shutdown | 시스템 종료 |
 
 향후 추가 예정
 
 - fork
-- ls
-- mkdir
-- touch
-- rm
-- cat
-- write
 - deadlock
 
 ---
