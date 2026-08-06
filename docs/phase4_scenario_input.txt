@@ -1,0 +1,59 @@
+pwd
+ls
+mkdir usr
+ls
+mkdir usr/local
+mkdir usr/local
+cd usr/local
+pwd
+touch readme.txt
+touch readme.txt
+ls
+write readme.txt Hello ForgeFramework Phase4
+cat readme.txt
+write readme.txt Overwritten content
+cat readme.txt
+cd ..
+cd ..
+pwd
+tree
+cd /usr/local
+pwd
+cd .
+pwd
+cd ../..
+pwd
+cd nowhere
+mkdir empty_dir
+rm empty_dir
+ls usr/local
+mkdir usr/local/sub
+touch usr/local/sub/inner.txt
+rm usr/local
+rm usr/local/sub/inner.txt
+rm usr/local/sub
+rm usr/local
+ls
+cat usr
+write usr hack
+touch usr
+rm doesnotexist
+cat doesnotexist
+touch bigfile.txt
+write bigfile.txt this content is intentionally long enough to exceed the tiny remaining virtual disk capacity for this simulation test case right here
+cat /usr/local/readme.txt
+mkdir d1
+mkdir d2
+mkdir d3
+mkdir d4
+mkdir d5
+mkdir d6
+mkdir d7
+mkdir d8
+mkdir d9
+mkdir d10
+mkdir d11
+mkdir d12
+mkdir d13
+tree /
+shutdown

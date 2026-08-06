@@ -1,0 +1,124 @@
+=================================================
+ ForgeFramework v1.0-phase4
+ Operating System Kernel Architecture Engine
+=================================================
+[02:58:15.919] [INFO] 하드웨어 점검 중...
+[02:58:16.080] [INFO] 이벤트 로거 초기화 중...
+[02:58:16.230] [INFO] 커널 초기화 중...
+[02:58:16.383] [INFO] 서브시스템 초기화 중...
+[02:58:16.413] [INFO] ProcessManager initialized [Scheduler: Round Robin (RR)]
+[02:58:16.433] [INFO] MemoryManager initialized [frames=16, frameSize=4]
+[02:58:16.457] [INFO] FileSystemManager initialized [blocks=16, blockSize=16, inodes=16]
+[02:58:16.611] [INFO] ForgeShell 준비 완료
+ForgeFramework Shell에 오신 것을 환영합니다. 'help'를 입력해보세요.
+forgeframework:/> /
+forgeframework:/> /
+NAME                 | TYPE       | SIZE
+forgeframework:/> [02:58:16.827] [INFO] Directory created: /usr
+디렉터리가 생성되었습니다: usr
+forgeframework:/> /
+NAME                 | TYPE       | SIZE
+usr                  | DIRECTORY  | 0
+forgeframework:/> [02:58:16.829] [INFO] Directory created: /usr/local
+디렉터리가 생성되었습니다: local
+forgeframework:/> 이미 존재하는 이름입니다: local
+forgeframework:/> /usr/local
+forgeframework:/usr/local> /usr/local
+forgeframework:/usr/local> [02:58:16.840] [INFO] File created: /usr/local/readme.txt
+파일이 생성되었습니다: readme.txt
+forgeframework:/usr/local> 파일이 생성되었습니다: readme.txt
+forgeframework:/usr/local> /usr/local
+NAME                 | TYPE       | SIZE
+readme.txt           | FILE       | 0
+forgeframework:/usr/local> [02:58:16.853] [INFO] File written: /usr/local/readme.txt (27B)
+27바이트 기록됨
+forgeframework:/usr/local> Hello ForgeFramework Phase4
+forgeframework:/usr/local> [02:58:16.863] [INFO] File written: /usr/local/readme.txt (19B)
+19바이트 기록됨
+forgeframework:/usr/local> Overwritten content
+forgeframework:/usr/local> /usr
+forgeframework:/usr> /
+forgeframework:/> /
+forgeframework:/> /
+└── usr/
+    └── local/
+        └── readme.txt
+forgeframework:/> /usr/local
+forgeframework:/usr/local> /usr/local
+forgeframework:/usr/local> /usr/local
+forgeframework:/usr/local> /usr/local
+forgeframework:/usr/local> /
+forgeframework:/> /
+forgeframework:/> 경로를 찾을 수 없습니다: nowhere
+forgeframework:/> [02:58:16.868] [INFO] Directory created: /empty_dir
+디렉터리가 생성되었습니다: empty_dir
+forgeframework:/> [02:58:16.868] [INFO] Removed: /empty_dir
+삭제되었습니다: empty_dir
+forgeframework:/> /usr/local
+NAME                 | TYPE       | SIZE
+readme.txt           | FILE       | 19
+forgeframework:/> [02:58:16.871] [INFO] Directory created: /usr/local/sub
+디렉터리가 생성되었습니다: sub
+forgeframework:/> [02:58:16.872] [INFO] File created: /usr/local/sub/inner.txt
+파일이 생성되었습니다: inner.txt
+forgeframework:/> 비어있지 않은 디렉터리는 삭제할 수 없습니다: usr/local
+forgeframework:/> [02:58:16.875] [INFO] Removed: /usr/local/sub/inner.txt
+삭제되었습니다: usr/local/sub/inner.txt
+forgeframework:/> [02:58:16.875] [INFO] Removed: /usr/local/sub
+삭제되었습니다: usr/local/sub
+forgeframework:/> 비어있지 않은 디렉터리는 삭제할 수 없습니다: usr/local
+forgeframework:/> /
+NAME                 | TYPE       | SIZE
+usr                  | DIRECTORY  | 0
+forgeframework:/> 디렉터리는 cat으로 읽을 수 없습니다: usr
+forgeframework:/> 디렉터리에는 쓸 수 없습니다: usr
+forgeframework:/> 이미 디렉터리로 존재합니다: usr
+forgeframework:/> 존재하지 않는 경로입니다: doesnotexist
+forgeframework:/> 경로를 찾을 수 없습니다: doesnotexist
+forgeframework:/> [02:58:16.880] [INFO] File created: /bigfile.txt
+파일이 생성되었습니다: bigfile.txt
+forgeframework:/> [02:58:16.880] [INFO] File written: /bigfile.txt (133B)
+133바이트 기록됨
+forgeframework:/> Overwritten content
+forgeframework:/> [02:58:16.880] [INFO] Directory created: /d1
+디렉터리가 생성되었습니다: d1
+forgeframework:/> [02:58:16.882] [INFO] Directory created: /d2
+디렉터리가 생성되었습니다: d2
+forgeframework:/> [02:58:16.883] [INFO] Directory created: /d3
+디렉터리가 생성되었습니다: d3
+forgeframework:/> [02:58:16.883] [INFO] Directory created: /d4
+디렉터리가 생성되었습니다: d4
+forgeframework:/> [02:58:16.883] [INFO] Directory created: /d5
+디렉터리가 생성되었습니다: d5
+forgeframework:/> [02:58:16.883] [INFO] Directory created: /d6
+디렉터리가 생성되었습니다: d6
+forgeframework:/> [02:58:16.884] [INFO] Directory created: /d7
+디렉터리가 생성되었습니다: d7
+forgeframework:/> [02:58:16.884] [INFO] Directory created: /d8
+디렉터리가 생성되었습니다: d8
+forgeframework:/> [02:58:16.884] [INFO] Directory created: /d9
+디렉터리가 생성되었습니다: d9
+forgeframework:/> [02:58:16.884] [INFO] Directory created: /d10
+디렉터리가 생성되었습니다: d10
+forgeframework:/> [02:58:16.885] [INFO] Directory created: /d11
+디렉터리가 생성되었습니다: d11
+forgeframework:/> inode가 부족합니다.
+forgeframework:/> inode가 부족합니다.
+forgeframework:/> /
+├── usr/
+│   └── local/
+│       └── readme.txt
+├── bigfile.txt
+├── d1/
+├── d2/
+├── d3/
+├── d4/
+├── d5/
+├── d6/
+├── d7/
+├── d8/
+├── d9/
+├── d10/
+└── d11/
+forgeframework:/> [02:58:16.887] [INFO] 커널 종료 절차를 시작합니다.
+ForgeOS를 종료합니다.
