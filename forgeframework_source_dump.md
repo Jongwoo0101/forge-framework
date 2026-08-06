@@ -131,8 +131,6 @@ public final class Main {
         System.setOut(new PrintStream(System.out, true, StandardCharsets.UTF_8));
         System.setErr(new PrintStream(System.err, true, StandardCharsets.UTF_8));
     }
-    // TODO: Frame Table, Virtual Memory 구현 후 Phase4 넘어가기
-    // TODO: 새롭게 구현된 내용 테스트 필요
 }
 ```
 
@@ -2320,7 +2318,7 @@ import java.util.List;
 
 /**
  * ForgeOS의 유일한 관리자(Kernel).
- *
+ * 유일한 관리자는 개뿔 나중에 framework api화 시킬때 이거 하나하나 다 뜯어고쳐야함 ㅅㅂ
  * <p>Singleton 패턴으로 구현되어 시스템 전체에서 단 하나의 인스턴스만 존재하며,
  * Facade 패턴으로서 모든 서브시스템(Process, Memory, FileSystem 등)에 대한
  * 단일 접근 창구 역할을 한다.</p>
