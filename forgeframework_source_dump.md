@@ -1,6 +1,6 @@
 # ForgeFramework Source Dump
 
-총 Java 파일 수 : **52개**
+총 Java 파일 수 : **73개**
 
 ---
 
@@ -9,6 +9,8 @@
 - `Main.java`
 - `boot/BootManager.java`
 - `boot/BootStage.java`
+- `command/CatCommand.java`
+- `command/CdCommand.java`
 - `command/Command.java`
 - `command/CommandRegistry.java`
 - `command/ExecCommand.java`
@@ -16,16 +18,34 @@
 - `command/FreeCommand.java`
 - `command/HelpCommand.java`
 - `command/KillCommand.java`
+- `command/LsCommand.java`
 - `command/MallocCommand.java`
 - `command/MeminfoCommand.java`
+- `command/MkdirCommand.java`
 - `command/PsCommand.java`
+- `command/PwdCommand.java`
+- `command/RmCommand.java`
 - `command/SchedulerCommand.java`
 - `command/ShutdownCommand.java`
+- `command/TouchCommand.java`
 - `command/TranslateCommand.java`
+- `command/TreeCommand.java`
 - `command/UnknownCommand.java`
 - `command/UptimeCommand.java`
+- `command/WriteCommand.java`
 - `common/ForgeOSConstants.java`
 - `exception/ForgeOSException.java`
+- `filesystem/Bitmap.java`
+- `filesystem/Directory.java`
+- `filesystem/DirectoryEntryDto.java`
+- `filesystem/FileContentDto.java`
+- `filesystem/FileListDto.java`
+- `filesystem/FileSystemManager.java`
+- `filesystem/Inode.java`
+- `filesystem/InodeType.java`
+- `filesystem/SuperBlock.java`
+- `filesystem/TreeNodeDto.java`
+- `filesystem/VirtualDisk.java`
 - `hardware/HardwareTimer.java`
 - `kernel/Kernel.java`
 - `logger/ConsoleLogListener.java`
@@ -54,6 +74,7 @@
 - `process/scheduler/RoundRobinScheduler.java`
 - `process/scheduler/Scheduler.java`
 - `shell/ForgeShell.java`
+- `shell/ShellContext.java`
 - `shell/ShellPrompt.java`
 - `syscall/SystemCallRequest.java`
 - `syscall/SystemCallResult.java`
@@ -126,6 +147,7 @@ public final class Main {
 package forgeframework.boot;
 
 import forgeframework.common.ForgeOSConstants;
+import forgeframework.filesystem.FileSystemManager;
 import forgeframework.hardware.HardwareTimer;
 import forgeframework.kernel.Kernel;
 import forgeframework.logger.EventLogger;
@@ -179,6 +201,14 @@ public class BootManager {
 
             kernel.registerProcessManager(processManager);
             kernel.registerMemoryManager(memoryManager);
+
+            FileSystemManager fileSystemManager = new FileSystemManager(
+                    logger,
+                    ForgeOSConstants.TOTAL_BLOCKS,
+                    ForgeOSConstants.BLOCK_SIZE,
+                    ForgeOSConstants.TOTAL_INODES
+            );
+            kernel.registerFileSystemManager(fileSystemManager);
 
             timer = new HardwareTimer(kernel);
             timer.start();
@@ -251,7 +281,117 @@ public enum BootStage {
 
 ---
 
-# 4. command/Command.java
+# 4. command/CatCommand.java
+
+**Path**
+`src/main/java/forgeframework/command/CatCommand.java`
+
+```java
+package forgeframework.command;
+
+import forgeframework.filesystem.FileContentDto;
+import forgeframework.kernel.Kernel;
+import forgeframework.shell.ShellContext;
+import forgeframework.syscall.SystemCallRequest;
+import forgeframework.syscall.SystemCallResult;
+import forgeframework.syscall.SystemCallType;
+
+/**
+ * 파일 내용을 출력하는 명령어. 사용법: cat &lt;name&gt;
+ */
+public final class CatCommand implements Command {
+
+    private final ShellContext context;
+
+    public CatCommand(ShellContext context) {
+        this.context = context;
+    }
+
+    @Override
+    public String name() {
+        return "cat";
+    }
+
+    @Override
+    public String description() {
+        return "파일 내용을 출력합니다. (cat <name>)";
+    }
+
+    @Override
+    public SystemCallResult execute(Kernel kernel, String[] args) {
+        if (args.length < 1) {
+            return SystemCallResult.failure("사용법: cat <name>");
+        }
+        SystemCallResult result = kernel.handleSystemCall(new SystemCallRequest(
+                SystemCallType.CAT, new String[]{context.getCwd(), args[0]}
+        ));
+        if (!result.isSuccess()) {
+            return result;
+        }
+        FileContentDto dto = (FileContentDto) result.getData();
+        return SystemCallResult.success(dto.content());
+    }
+}
+```
+
+---
+
+# 5. command/CdCommand.java
+
+**Path**
+`src/main/java/forgeframework/command/CdCommand.java`
+
+```java
+package forgeframework.command;
+
+import forgeframework.kernel.Kernel;
+import forgeframework.shell.ShellContext;
+import forgeframework.syscall.SystemCallRequest;
+import forgeframework.syscall.SystemCallResult;
+import forgeframework.syscall.SystemCallType;
+
+/**
+ * 작업 디렉터리를 변경하는 명령어. 사용법: cd &lt;path&gt;
+ *
+ * <p>Kernel이 대상 경로가 유효한 디렉터리인지 검증하고 절대경로로 해석해서
+ * 돌려주면, 성공한 경우에만 이 명령어가 {@link ShellContext}의 CWD를 갱신한다
+ * (Kernel 자신은 상태를 갖지 않는다).</p>
+ */
+public final class CdCommand implements Command {
+
+    private final ShellContext context;
+
+    public CdCommand(ShellContext context) {
+        this.context = context;
+    }
+
+    @Override
+    public String name() {
+        return "cd";
+    }
+
+    @Override
+    public String description() {
+        return "작업 디렉터리를 변경합니다. (cd <path>)";
+    }
+
+    @Override
+    public SystemCallResult execute(Kernel kernel, String[] args) {
+        String target = (args.length > 0) ? args[0] : "/";
+        SystemCallResult result = kernel.handleSystemCall(new SystemCallRequest(
+                SystemCallType.CD, new String[]{context.getCwd(), target}
+        ));
+        if (result.isSuccess()) {
+            context.setCwd((String) result.getData());
+        }
+        return result;
+    }
+}
+```
+
+---
+
+# 6. command/Command.java
 
 **Path**
 `src/main/java/forgeframework/command/Command.java`
@@ -297,7 +437,7 @@ public interface Command {
 
 ---
 
-# 5. command/CommandRegistry.java
+# 7. command/CommandRegistry.java
 
 **Path**
 `src/main/java/forgeframework/command/CommandRegistry.java`
@@ -351,7 +491,7 @@ public class CommandRegistry {
 
 ---
 
-# 6. command/ExecCommand.java
+# 8. command/ExecCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/ExecCommand.java`
@@ -381,7 +521,7 @@ public final class ExecCommand implements Command {
 
 ---
 
-# 7. command/FrameTableCommand.java
+# 9. command/FrameTableCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/FrameTableCommand.java`
@@ -444,7 +584,7 @@ public final class FrameTableCommand implements Command {
 
 ---
 
-# 8. command/FreeCommand.java
+# 10. command/FreeCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/FreeCommand.java`
@@ -471,7 +611,7 @@ public final class FreeCommand implements Command {
 
 ---
 
-# 9. command/HelpCommand.java
+# 11. command/HelpCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/HelpCommand.java`
@@ -524,7 +664,7 @@ public final class HelpCommand implements Command {
 
 ---
 
-# 10. command/KillCommand.java
+# 12. command/KillCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/KillCommand.java`
@@ -548,7 +688,72 @@ public final class KillCommand implements Command {
 
 ---
 
-# 11. command/MallocCommand.java
+# 13. command/LsCommand.java
+
+**Path**
+`src/main/java/forgeframework/command/LsCommand.java`
+
+```java
+package forgeframework.command;
+
+import forgeframework.filesystem.DirectoryEntryDto;
+import forgeframework.filesystem.FileListDto;
+import forgeframework.kernel.Kernel;
+import forgeframework.shell.ShellContext;
+import forgeframework.syscall.SystemCallRequest;
+import forgeframework.syscall.SystemCallResult;
+import forgeframework.syscall.SystemCallType;
+
+/**
+ * 디렉터리 내용을 나열하는 명령어. 사용법: ls [path]
+ *
+ * <p>Kernel/FileSystemManager는 {@link FileListDto}라는 순수 데이터만 반환하고,
+ * 표 형태로 꾸미는 건 이 클래스(Shell 계층)의 책임이다 — PsCommand/MeminfoCommand와
+ * 동일한 원칙을 따른다.</p>
+ */
+public final class LsCommand implements Command {
+
+    private final ShellContext context;
+
+    public LsCommand(ShellContext context) {
+        this.context = context;
+    }
+
+    @Override
+    public String name() {
+        return "ls";
+    }
+
+    @Override
+    public String description() {
+        return "디렉터리 내용을 나열합니다. (ls [path])";
+    }
+
+    @Override
+    public SystemCallResult execute(Kernel kernel, String[] args) {
+        String target = (args.length > 0) ? args[0] : ".";
+        SystemCallResult result = kernel.handleSystemCall(new SystemCallRequest(
+                SystemCallType.LS, new String[]{context.getCwd(), target}
+        ));
+        if (!result.isSuccess()) {
+            return result;
+        }
+
+        FileListDto dto = (FileListDto) result.getData();
+        StringBuilder sb = new StringBuilder();
+        sb.append(dto.currentPath()).append('\n');
+        sb.append(String.format("%-20s | %-10s | %s%n", "NAME", "TYPE", "SIZE"));
+        for (DirectoryEntryDto entry : dto.entries()) {
+            sb.append(String.format("%-20s | %-10s | %d%n", entry.name(), entry.type(), entry.size()));
+        }
+        return SystemCallResult.success(sb.toString().stripTrailing());
+    }
+}
+```
+
+---
+
+# 14. command/MallocCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/MallocCommand.java`
@@ -575,7 +780,7 @@ public final class MallocCommand implements Command {
 
 ---
 
-# 12. command/MeminfoCommand.java
+# 15. command/MeminfoCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/MeminfoCommand.java`
@@ -656,7 +861,72 @@ public final class MeminfoCommand implements Command {
 
 ---
 
-# 13. command/PsCommand.java
+# 16. command/MkdirCommand.java
+
+**Path**
+`src/main/java/forgeframework/command/MkdirCommand.java`
+
+```java
+package forgeframework.command;
+
+import forgeframework.filesystem.DirectoryEntryDto;
+import forgeframework.kernel.Kernel;
+import forgeframework.shell.ShellContext;
+import forgeframework.syscall.SystemCallRequest;
+import forgeframework.syscall.SystemCallResult;
+import forgeframework.syscall.SystemCallType;
+
+/**
+ * 새 디렉터리를 생성하는 명령어. 사용법: mkdir &lt;name&gt;
+ */
+public final class MkdirCommand implements Command {
+
+    private final ShellContext context;
+
+    public MkdirCommand(ShellContext context) {
+        this.context = context;
+    }
+
+    @Override
+    public String name() {
+        return "mkdir";
+    }
+
+    @Override
+    public String description() {
+        return "새 디렉터리를 생성합니다. (mkdir <name>)";
+    }
+
+    @Override
+    public SystemCallResult execute(Kernel kernel, String[] args) {
+//        아래 조건식을 사용하게 된다면 인자를 하나씩 떨어뜨려서 명령어를 전달 시
+//        ex) mkdir d 9
+//        첫번째 인자인 "d"만 전달되고 나머지 9는 아무런 경고없이 무시되는 문제가 있음
+//        TouchCommand.java, RMCommand.java도 동일한 문제를 가지고 있어 모두 수정한다.
+//        if (args.length < 1) {
+//            return SystemCallResult.failure("사용법: mkdir <name>");
+//        }
+
+        // 해결 버전
+        if ( args.length != 1 ) {
+            return SystemCallResult.failure("사용법: mkdir <name> (공백 없는 이름 하나만 입력)");
+        }
+
+        SystemCallResult result = kernel.handleSystemCall(new SystemCallRequest(
+                SystemCallType.MKDIR, new String[]{context.getCwd(), args[0]}
+        ));
+        if (!result.isSuccess()) {
+            return result;
+        }
+        DirectoryEntryDto dto = (DirectoryEntryDto) result.getData();
+        return SystemCallResult.success("디렉터리가 생성되었습니다: " + dto.name());
+    }
+}
+```
+
+---
+
+# 17. command/PsCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/PsCommand.java`
@@ -680,7 +950,108 @@ public final class PsCommand implements Command {
 
 ---
 
-# 14. command/SchedulerCommand.java
+# 18. command/PwdCommand.java
+
+**Path**
+`src/main/java/forgeframework/command/PwdCommand.java`
+
+```java
+package forgeframework.command;
+
+import forgeframework.kernel.Kernel;
+import forgeframework.shell.ShellContext;
+import forgeframework.syscall.SystemCallResult;
+
+/**
+ * 현재 작업 디렉터리를 출력하는 명령어.
+ *
+ * <p>CWD는 Kernel이 아니라 Shell({@link ShellContext})이 들고 있는 상태이므로,
+ * 이 명령어는 시스템 콜을 전혀 보내지 않는다 (Kernel의 무상태성을 지키기 위한
+ * 의도적인 예외).</p>
+ */
+public final class PwdCommand implements Command {
+
+    private final ShellContext context;
+
+    public PwdCommand(ShellContext context) {
+        this.context = context;
+    }
+
+    @Override
+    public String name() {
+        return "pwd";
+    }
+
+    @Override
+    public String description() {
+        return "현재 작업 디렉터리를 출력합니다.";
+    }
+
+    @Override
+    public SystemCallResult execute(Kernel kernel, String[] args) {
+        return SystemCallResult.success(context.getCwd());
+    }
+}
+```
+
+---
+
+# 19. command/RmCommand.java
+
+**Path**
+`src/main/java/forgeframework/command/RmCommand.java`
+
+```java
+package forgeframework.command;
+
+import forgeframework.kernel.Kernel;
+import forgeframework.shell.ShellContext;
+import forgeframework.syscall.SystemCallRequest;
+import forgeframework.syscall.SystemCallResult;
+import forgeframework.syscall.SystemCallType;
+
+/**
+ * 파일 또는 비어있는 디렉터리를 삭제하는 명령어. 사용법: rm &lt;name&gt;
+ */
+public final class RmCommand implements Command {
+
+    private final ShellContext context;
+
+    public RmCommand(ShellContext context) {
+        this.context = context;
+    }
+
+    @Override
+    public String name() {
+        return "rm";
+    }
+
+    @Override
+    public String description() {
+        return "파일 또는 빈 디렉터리를 삭제합니다. (rm <name>)";
+    }
+
+    @Override
+    public SystemCallResult execute(Kernel kernel, String[] args) {
+        // MkdirCommand.java 33 ~ 36 line 참고
+        /* if (args.length < 1) {
+            return SystemCallResult.failure("사용법: rm <name>");
+        } */
+
+        if (args.length != 1) {
+            return SystemCallResult.failure("사용법: rm <name> (공백 없는 이름 하나만 입력)");
+        }
+
+        return kernel.handleSystemCall(new SystemCallRequest(
+                SystemCallType.RM, new String[]{context.getCwd(), args[0]}
+        ));
+    }
+}
+```
+
+---
+
+# 20. command/SchedulerCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/SchedulerCommand.java`
@@ -708,7 +1079,7 @@ public final class SchedulerCommand implements Command {
 
 ---
 
-# 15. command/ShutdownCommand.java
+# 21. command/ShutdownCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/ShutdownCommand.java`
@@ -745,7 +1116,68 @@ public final class ShutdownCommand implements Command {
 
 ---
 
-# 16. command/TranslateCommand.java
+# 22. command/TouchCommand.java
+
+**Path**
+`src/main/java/forgeframework/command/TouchCommand.java`
+
+```java
+package forgeframework.command;
+
+import forgeframework.filesystem.DirectoryEntryDto;
+import forgeframework.kernel.Kernel;
+import forgeframework.shell.ShellContext;
+import forgeframework.syscall.SystemCallRequest;
+import forgeframework.syscall.SystemCallResult;
+import forgeframework.syscall.SystemCallType;
+
+/**
+ * 빈 파일을 생성하는 명령어. 사용법: touch &lt;name&gt;
+ */
+public final class TouchCommand implements Command {
+
+    private final ShellContext context;
+
+    public TouchCommand(ShellContext context) {
+        this.context = context;
+    }
+
+    @Override
+    public String name() {
+        return "touch";
+    }
+
+    @Override
+    public String description() {
+        return "빈 파일을 생성합니다. (touch <name>)";
+    }
+
+    @Override
+    public SystemCallResult execute(Kernel kernel, String[] args) {
+        // MkdirCommand.java 33 ~ 36 line 참고
+        /* if (args.length < 1) {
+            return SystemCallResult.failure("사용법: touch <name>");
+        } */
+
+        if ( args.length != 1 ) {
+            return SystemCallResult.failure("사용법: touch <name> (공백 없는 이름 하나만 입력)");
+        }
+
+        SystemCallResult result = kernel.handleSystemCall(new SystemCallRequest(
+                SystemCallType.TOUCH, new String[]{context.getCwd(), args[0]}
+        ));
+        if (!result.isSuccess()) {
+            return result;
+        }
+        DirectoryEntryDto dto = (DirectoryEntryDto) result.getData();
+        return SystemCallResult.success("파일이 생성되었습니다: " + dto.name());
+    }
+}
+```
+
+---
+
+# 23. command/TranslateCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/TranslateCommand.java`
@@ -773,7 +1205,83 @@ public final class TranslateCommand implements Command {
 
 ---
 
-# 17. command/UnknownCommand.java
+# 24. command/TreeCommand.java
+
+**Path**
+`src/main/java/forgeframework/command/TreeCommand.java`
+
+```java
+package forgeframework.command;
+
+import forgeframework.filesystem.TreeNodeDto;
+import forgeframework.kernel.Kernel;
+import forgeframework.shell.ShellContext;
+import forgeframework.syscall.SystemCallRequest;
+import forgeframework.syscall.SystemCallResult;
+import forgeframework.syscall.SystemCallType;
+
+import java.util.List;
+
+/**
+ * 디렉터리 구조를 트리 형태로 출력하는 명령어. 사용법: tree [path]
+ *
+ * <p>Kernel/FileSystemManager는 재귀적 DTO({@link TreeNodeDto})만 반환하고,
+ * ├──/└── 같은 ASCII 트리 렌더링은 전적으로 이 클래스의 책임이다.</p>
+ */
+public final class TreeCommand implements Command {
+
+    private final ShellContext context;
+
+    public TreeCommand(ShellContext context) {
+        this.context = context;
+    }
+
+    @Override
+    public String name() {
+        return "tree";
+    }
+
+    @Override
+    public String description() {
+        return "디렉터리 구조를 트리 형태로 출력합니다. (tree [path])";
+    }
+
+    @Override
+    public SystemCallResult execute(Kernel kernel, String[] args) {
+        String target = (args.length > 0) ? args[0] : ".";
+        SystemCallResult result = kernel.handleSystemCall(new SystemCallRequest(
+                SystemCallType.TREE, new String[]{context.getCwd(), target}
+        ));
+        if (!result.isSuccess()) {
+            return result;
+        }
+
+        TreeNodeDto root = (TreeNodeDto) result.getData();
+        StringBuilder sb = new StringBuilder();
+        render(sb, root, "", true, true);
+        return SystemCallResult.success(sb.toString().stripTrailing());
+    }
+
+    private void render(StringBuilder sb, TreeNodeDto node, String prefix, boolean isLast, boolean isRoot) {
+        String suffix = (node.isDirectory() && !node.name().endsWith("/")) ? "/" : "";
+        if (isRoot) {
+            sb.append(node.name()).append(suffix).append('\n');
+        } else {
+            sb.append(prefix).append(isLast ? "└── " : "├── ").append(node.name()).append(suffix).append('\n');
+        }
+
+        String childPrefix = isRoot ? "" : prefix + (isLast ? "    " : "│   ");
+        List<TreeNodeDto> children = node.children();
+        for (int i = 0; i < children.size(); i++) {
+            render(sb, children.get(i), childPrefix, i == children.size() - 1, false);
+        }
+    }
+}
+```
+
+---
+
+# 25. command/UnknownCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/UnknownCommand.java`
@@ -819,7 +1327,7 @@ public final class UnknownCommand implements Command {
 
 ---
 
-# 18. command/UptimeCommand.java
+# 26. command/UptimeCommand.java
 
 **Path**
 `src/main/java/forgeframework/command/UptimeCommand.java`
@@ -856,7 +1364,63 @@ public final class UptimeCommand implements Command {
 
 ---
 
-# 19. common/ForgeOSConstants.java
+# 27. command/WriteCommand.java
+
+**Path**
+`src/main/java/forgeframework/command/WriteCommand.java`
+
+```java
+package forgeframework.command;
+
+import forgeframework.kernel.Kernel;
+import forgeframework.shell.ShellContext;
+import forgeframework.syscall.SystemCallRequest;
+import forgeframework.syscall.SystemCallResult;
+import forgeframework.syscall.SystemCallType;
+
+import java.util.Arrays;
+
+/**
+ * 파일 내용을 덮어쓰는 명령어. 사용법: write &lt;name&gt; &lt;text...&gt;
+ *
+ * <p>ForgeShell이 입력을 공백 기준으로 토큰화하기 때문에, text에 공백이
+ * 여러 단어로 들어오면 args[1] 이후를 전부 공백으로 다시 합쳐서 원래
+ * 문자열을 복원한다.</p>
+ */
+public final class WriteCommand implements Command {
+
+    private final ShellContext context;
+
+    public WriteCommand(ShellContext context) {
+        this.context = context;
+    }
+
+    @Override
+    public String name() {
+        return "write";
+    }
+
+    @Override
+    public String description() {
+        return "파일 내용을 덮어씁니다. (write <name> <text>)";
+    }
+
+    @Override
+    public SystemCallResult execute(Kernel kernel, String[] args) {
+        if (args.length < 2) {
+            return SystemCallResult.failure("사용법: write <name> <text>");
+        }
+        String content = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
+        return kernel.handleSystemCall(new SystemCallRequest(
+                SystemCallType.WRITE, new String[]{context.getCwd(), args[0], content}
+        ));
+    }
+}
+```
+
+---
+
+# 28. common/ForgeOSConstants.java
 
 **Path**
 `src/main/java/forgeframework/common/ForgeOSConstants.java`
@@ -876,10 +1440,16 @@ public final class ForgeOSConstants {
     public static final String OS_NAME = "ForgeFramework";
 
     /** OS 버전. */
-    public static final String OS_VERSION = "1.0-phase3.5";
+    public static final String OS_VERSION = "1.0-phase4";
 
-    /** Shell 프롬프트 기본 문자열. */
-    public static final String SHELL_PROMPT = "forgeframework> ";
+    /**
+     * Shell 프롬프트 접두사. 실제 프롬프트는 ShellPrompt가
+     * {@code PREFIX + ":" + cwd + SUFFIX} 형태로 CWD를 반영해 렌더링한다.
+     */
+    public static final String SHELL_PROMPT_PREFIX = "forgeframework";
+
+    /** Shell 프롬프트 접미사. */
+    public static final String SHELL_PROMPT_SUFFIX = "> ";
 
     /** 부팅 단계 사이의 연출용 대기 시간(ms). */
     public static final long BOOT_STAGE_DELAY_MS = 150L;
@@ -905,6 +1475,15 @@ public final class ForgeOSConstants {
     /** TLB가 캐싱할 수 있는 (pid, 페이지) 항목 최대 개수. */
     public static final int TLB_CAPACITY = 4;
 
+    /** 가상 디스크의 블록 하나 크기(byte). */
+    public static final int BLOCK_SIZE = 16;
+
+    /** 가상 디스크의 총 블록 개수. */
+    public static final int TOTAL_BLOCKS = 16;
+
+    /** 파일 시스템의 총 inode 개수 (루트 디렉터리 포함). */
+    public static final int TOTAL_INODES = 16;
+
     private ForgeOSConstants() {
         // 인스턴스화 방지
     }
@@ -913,7 +1492,7 @@ public final class ForgeOSConstants {
 
 ---
 
-# 20. exception/ForgeOSException.java
+# 29. exception/ForgeOSException.java
 
 **Path**
 `src/main/java/forgeframework/exception/ForgeOSException.java`
@@ -941,7 +1520,721 @@ public class ForgeOSException extends RuntimeException {
 
 ---
 
-# 21. hardware/HardwareTimer.java
+# 30. filesystem/Bitmap.java
+
+**Path**
+`src/main/java/forgeframework/filesystem/Bitmap.java`
+
+```java
+package forgeframework.filesystem;
+
+/**
+ * inode 번호와 데이터 블록 번호 둘 다에 재사용되는 범용 할당 비트맵.
+ *
+ * <p>어떤 인덱스가 비어있는지 순차 탐색으로 찾아 할당한다(first-fit).
+ * 실패 시 예외 대신 -1을 반환한다 — 호출부(FileSystemManager)가 롤백 여부를
+ * 판단해야 하는 경우가 많아서, 예외보다는 값으로 실패를 전달하는 쪽이 더 유연하다.</p>
+ */
+public final class Bitmap {
+
+    private final boolean[] used;
+
+    public Bitmap(int size) {
+        this.used = new boolean[size];
+    }
+
+    /**
+     * 비어있는 인덱스 하나를 찾아 사용 중으로 표시한다.
+     *
+     * @return 할당된 인덱스, 남은 공간이 없으면 -1
+     */
+    public int allocate() {
+        for (int i = 0; i < used.length; i++) {
+            if (!used[i]) {
+                used[i] = true;
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    public void free(int index) {
+        used[index] = false;
+    }
+
+    public boolean isUsed(int index) {
+        return used[index];
+    }
+
+    public int size() {
+        return used.length;
+    }
+
+    public int getUsedCount() {
+        int count = 0;
+        for (boolean b : used) {
+            if (b) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public int getFreeCount() {
+        return used.length - getUsedCount();
+    }
+}
+```
+
+---
+
+# 31. filesystem/Directory.java
+
+**Path**
+`src/main/java/forgeframework/filesystem/Directory.java`
+
+```java
+package forgeframework.filesystem;
+
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+/**
+ * 디렉터리 하나가 담고 있는 엔트리(이름 → inode 번호) 목록.
+ *
+ * <p>실제 파일 시스템이라면 이 매핑 자체도 데이터 블록에 직렬화되어야 하지만,
+ * 지금 단계에서는 시뮬레이션의 편의를 위해 자바 객체로 메모리에 유지한다
+ * (inode의 DIRECTORY 타입과 1:1로 대응하는 보조 자료구조로
+ * {@link FileSystemManager}가 관리). {@code LinkedHashMap}을 써서 생성
+ * 순서가 {@code ls}/{@code tree} 출력에 유지되도록 했다.</p>
+ */
+public final class Directory {
+
+    private final Map<String, Integer> entries = new LinkedHashMap<>();
+
+    public void addEntry(String name, int inodeNumber) {
+        entries.put(name, inodeNumber);
+    }
+
+    public void removeEntry(String name) {
+        entries.remove(name);
+    }
+
+    public Integer resolve(String name) {
+        return entries.get(name);
+    }
+
+    public Map<String, Integer> getEntries() {
+        return Collections.unmodifiableMap(entries);
+    }
+}
+```
+
+---
+
+# 32. filesystem/DirectoryEntryDto.java
+
+**Path**
+`src/main/java/forgeframework/filesystem/DirectoryEntryDto.java`
+
+```java
+package forgeframework.filesystem;
+
+/**
+ * {@code ls} 결과에서 파일/폴더 하나를 나타내는 DTO.
+ */
+public record DirectoryEntryDto(String name, String type, int size) {
+}
+```
+
+---
+
+# 33. filesystem/FileContentDto.java
+
+**Path**
+`src/main/java/forgeframework/filesystem/FileContentDto.java`
+
+```java
+package forgeframework.filesystem;
+
+/**
+ * {@code cat} 명령의 반환 DTO.
+ */
+public record FileContentDto(String name, String content) {
+}
+```
+
+---
+
+# 34. filesystem/FileListDto.java
+
+**Path**
+`src/main/java/forgeframework/filesystem/FileListDto.java`
+
+```java
+package forgeframework.filesystem;
+
+import java.util.List;
+
+/**
+ * {@code ls} 명령의 최종 반환 DTO. currentPath는 상대경로/CWD를 반영해
+ * 해석된 절대경로다.
+ */
+public record FileListDto(String currentPath, List<DirectoryEntryDto> entries) {
+}
+```
+
+---
+
+# 35. filesystem/FileSystemManager.java
+
+**Path**
+`src/main/java/forgeframework/filesystem/FileSystemManager.java`
+
+```java
+package forgeframework.filesystem;
+
+import forgeframework.exception.ForgeOSException;
+import forgeframework.logger.EventLogger;
+import forgeframework.logger.LogLevel;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 파일 시스템 전체를 총괄하는 매니저 (Facade).
+ *
+ * <p>Kernel은 무상태(stateless)를 유지해야 하므로, 현재 작업 디렉터리(CWD)는
+ * 이 클래스도 Kernel도 아닌 Shell({@code ShellContext})이 들고 있다. 모든
+ * public 메서드는 호출부(Kernel)로부터 CWD와 대상 경로를 함께 전달받아,
+ * 그때그때 절대경로로 해석한 뒤 동작한다 — 즉 이 클래스 자체에는 "현재
+ * 어디에 있는지"에 대한 상태가 전혀 없다.</p>
+ *
+ * <p>경로 해석은 항상 {@code .}/{@code ..}을 포함해 이 클래스 안에서
+ * 통합 처리한다({@link #normalizeComponents}).</p>
+ */
+public final class FileSystemManager {
+
+    private final EventLogger logger;
+    private final VirtualDisk disk;
+    private final Bitmap blockBitmap;
+    private final Bitmap inodeBitmap;
+    private final Inode[] inodeTable;
+    private final Map<Integer, Directory> directories = new HashMap<>();
+    private final SuperBlock superBlock;
+
+    public FileSystemManager(EventLogger logger, int totalBlocks, int blockSize, int totalInodes) {
+        this.logger = logger;
+        this.disk = new VirtualDisk(totalBlocks, blockSize);
+        this.blockBitmap = new Bitmap(totalBlocks);
+        this.inodeBitmap = new Bitmap(totalInodes);
+        this.inodeTable = new Inode[totalInodes];
+
+        int rootInodeNumber = inodeBitmap.allocate();
+        inodeTable[rootInodeNumber] = new Inode(rootInodeNumber, InodeType.DIRECTORY);
+        directories.put(rootInodeNumber, new Directory());
+
+        this.superBlock = new SuperBlock(totalBlocks, blockSize, totalInodes, rootInodeNumber);
+        logger.log(LogLevel.INFO,
+                "FileSystemManager initialized [blocks=" + totalBlocks + ", blockSize=" + blockSize
+                        + ", inodes=" + totalInodes + "]");
+    }
+
+    // ===================== 경로 해석 유틸리티 =====================
+
+    /**
+     * cwd와 targetPath를 조합해 "." / ".." 을 전부 처리한 경로 구성요소 목록을 만든다.
+     * targetPath가 "/"로 시작하면 절대경로로 취급하고, 아니면 cwd 기준 상대경로로 취급한다.
+     */
+    private List<String> normalizeComponents(String cwd, String targetPath) {
+        String base = (targetPath != null && targetPath.startsWith("/")) ? targetPath : combine(cwd, targetPath);
+        String[] rawParts = base.split("/");
+        Deque<String> stack = new ArrayDeque<>();
+        for (String part : rawParts) {
+            if (part.isEmpty() || part.equals(".")) {
+                continue;
+            }
+            if (part.equals("..")) {
+                if (!stack.isEmpty()) {
+                    stack.removeLast();
+                }
+                continue;
+            }
+            stack.addLast(part);
+        }
+        return new ArrayList<>(stack);
+    }
+
+    private String combine(String cwd, String targetPath) {
+        if (targetPath == null || targetPath.isBlank() || targetPath.equals(".")) {
+            return cwd;
+        }
+        return cwd.equals("/") ? "/" + targetPath : cwd + "/" + targetPath;
+    }
+
+    /** 경로 구성요소 목록을 루트부터 순서대로 따라가며 inode 번호를 찾는다. */
+    private int walk(List<String> parts) {
+        int current = superBlock.getRootInodeNumber();
+        for (String part : parts) {
+            Directory dir = directories.get(current);
+            if (dir == null) {
+                throw new ForgeOSException("디렉터리가 아닙니다.");
+            }
+            Integer next = dir.resolve(part);
+            if (next == null) {
+                throw new ForgeOSException("경로를 찾을 수 없습니다: " + part);
+            }
+            current = next;
+        }
+        return current;
+    }
+
+    private String toAbsolutePath(List<String> parts) {
+        return parts.isEmpty() ? "/" : "/" + String.join("/", parts);
+    }
+
+    private int allocateInode(InodeType type) {
+        int inodeNumber = inodeBitmap.allocate();
+        if (inodeNumber == -1) {
+            throw new ForgeOSException("inode가 부족합니다.");
+        }
+        inodeTable[inodeNumber] = new Inode(inodeNumber, type);
+        if (type == InodeType.DIRECTORY) {
+            directories.put(inodeNumber, new Directory());
+        }
+        return inodeNumber;
+    }
+
+    private static int ceilDiv(int a, int b) {
+        return (a + b - 1) / b;
+    }
+
+    // ===================== 공개 API =====================
+
+    /**
+     * targetPath가 유효한 디렉터리인지 확인하고, 해석된 절대경로를 반환한다.
+     * Shell은 성공 시 이 반환값으로 자신의 CWD 상태를 갱신한다.
+     */
+    public synchronized String cd(String cwd, String targetPath) {
+        List<String> parts = normalizeComponents(cwd, targetPath);
+        int inodeNumber = walk(parts);
+        if (inodeTable[inodeNumber].getType() != InodeType.DIRECTORY) {
+            throw new ForgeOSException("디렉터리가 아닙니다: " + targetPath);
+        }
+        return toAbsolutePath(parts);
+    }
+
+    public synchronized FileListDto ls(String cwd, String targetPath) {
+        String resolvedTarget = (targetPath == null || targetPath.isBlank()) ? "." : targetPath;
+        List<String> parts = normalizeComponents(cwd, resolvedTarget);
+        int inodeNumber = walk(parts);
+        Inode inode = inodeTable[inodeNumber];
+        if (inode.getType() != InodeType.DIRECTORY) {
+            throw new ForgeOSException("디렉터리가 아닙니다: " + targetPath);
+        }
+
+        Directory dir = directories.get(inodeNumber);
+        List<DirectoryEntryDto> entries = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : dir.getEntries().entrySet()) {
+            Inode childInode = inodeTable[entry.getValue()];
+            entries.add(new DirectoryEntryDto(entry.getKey(), childInode.getType().name(), (int) childInode.getSize()));
+        }
+        return new FileListDto(toAbsolutePath(parts), entries);
+    }
+
+    public synchronized DirectoryEntryDto mkdir(String cwd, String targetPath) {
+        List<String> parts = normalizeComponents(cwd, targetPath);
+        if (parts.isEmpty()) {
+            throw new ForgeOSException("루트는 이 작업의 대상이 될 수 없습니다.");
+        }
+        String name = parts.get(parts.size() - 1);
+        int parentInode = walk(parts.subList(0, parts.size() - 1));
+        Directory parentDir = directories.get(parentInode);
+        if (parentDir == null) {
+            throw new ForgeOSException("상위 경로가 디렉터리가 아닙니다.");
+        }
+        if (parentDir.resolve(name) != null) {
+            throw new ForgeOSException("이미 존재하는 이름입니다: " + name);
+        }
+
+        int newInodeNumber = allocateInode(InodeType.DIRECTORY);
+        parentDir.addEntry(name, newInodeNumber);
+        logger.log(LogLevel.INFO, "Directory created: " + toAbsolutePath(parts));
+        return new DirectoryEntryDto(name, "DIRECTORY", 0);
+    }
+
+    /**
+     * touch는 실제 유닉스와 동일하게 이미 있는 파일이면 조용히 성공(idempotent)한다.
+     * 단, 같은 이름의 디렉터리가 이미 있으면 오류를 던진다.
+     */
+    public synchronized DirectoryEntryDto touch(String cwd, String targetPath) {
+        List<String> parts = normalizeComponents(cwd, targetPath);
+        if (parts.isEmpty()) {
+            throw new ForgeOSException("루트는 이 작업의 대상이 될 수 없습니다.");
+        }
+        String name = parts.get(parts.size() - 1);
+        int parentInode = walk(parts.subList(0, parts.size() - 1));
+        Directory parentDir = directories.get(parentInode);
+        if (parentDir == null) {
+            throw new ForgeOSException("상위 경로가 디렉터리가 아닙니다.");
+        }
+
+        Integer existing = parentDir.resolve(name);
+        if (existing != null) {
+            Inode existingInode = inodeTable[existing];
+            if (existingInode.getType() != InodeType.FILE) {
+                throw new ForgeOSException("이미 디렉터리로 존재합니다: " + name);
+            }
+            return new DirectoryEntryDto(name, "FILE", (int) existingInode.getSize());
+        }
+
+        int newInodeNumber = allocateInode(InodeType.FILE);
+        parentDir.addEntry(name, newInodeNumber);
+        logger.log(LogLevel.INFO, "File created: " + toAbsolutePath(parts));
+        return new DirectoryEntryDto(name, "FILE", 0);
+    }
+
+    /**
+     * 파일 또는 "비어있는" 디렉터리를 삭제한다. 비어있지 않은 디렉터리는 거부한다.
+     */
+    public synchronized void rm(String cwd, String targetPath) {
+        List<String> parts = normalizeComponents(cwd, targetPath);
+        if (parts.isEmpty()) {
+            throw new ForgeOSException("루트 디렉터리는 삭제할 수 없습니다.");
+        }
+        String name = parts.get(parts.size() - 1);
+        int parentInode = walk(parts.subList(0, parts.size() - 1));
+        Directory parentDir = directories.get(parentInode);
+        if (parentDir == null) {
+            throw new ForgeOSException("상위 경로가 디렉터리가 아닙니다.");
+        }
+        Integer childInodeNumber = parentDir.resolve(name);
+        if (childInodeNumber == null) {
+            throw new ForgeOSException("존재하지 않는 경로입니다: " + targetPath);
+        }
+
+        Inode childInode = inodeTable[childInodeNumber];
+        if (childInode.getType() == InodeType.DIRECTORY) {
+            Directory childDir = directories.get(childInodeNumber);
+            if (childDir != null && !childDir.getEntries().isEmpty()) {
+                throw new ForgeOSException("비어있지 않은 디렉터리는 삭제할 수 없습니다: " + targetPath);
+            }
+            directories.remove(childInodeNumber);
+        } else {
+            for (int blockNumber : childInode.getBlocks()) {
+                blockBitmap.free(blockNumber);
+            }
+        }
+
+        inodeBitmap.free(childInodeNumber);
+        parentDir.removeEntry(name);
+        logger.log(LogLevel.INFO, "Removed: " + toAbsolutePath(parts));
+    }
+
+    /**
+     * 파일 내용을 content로 완전히 덮어쓴다(append 아님). 디스크 공간이 부족하면
+     * 이미 확보한 새 블록을 롤백하고, 기존 파일 내용은 그대로 보존한다.
+     */
+    public synchronized int write(String cwd, String targetPath, String content) {
+        List<String> parts = normalizeComponents(cwd, targetPath);
+        int inodeNumber = walk(parts);
+        Inode inode = inodeTable[inodeNumber];
+        if (inode.getType() != InodeType.FILE) {
+            throw new ForgeOSException("디렉터리에는 쓸 수 없습니다: " + targetPath);
+        }
+
+        byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
+        int blockSize = disk.getBlockSize();
+        int blocksNeeded = (bytes.length == 0) ? 0 : ceilDiv(bytes.length, blockSize);
+
+        List<Integer> newBlocks = new ArrayList<>();
+        for (int i = 0; i < blocksNeeded; i++) {
+            int blockNumber = blockBitmap.allocate();
+            if (blockNumber == -1) {
+                for (int bn : newBlocks) {
+                    blockBitmap.free(bn);
+                }
+                throw new ForgeOSException("디스크 공간이 부족합니다.");
+            }
+            newBlocks.add(blockNumber);
+        }
+
+        // 새 블록 확보에 전부 성공한 뒤에야 기존 블록을 반납한다.
+        // 중간에 실패하면 위에서 예외를 던지고 끝나므로, 기존 파일 내용이 보존된다.
+        for (int oldBlock : inode.getBlocks()) {
+            blockBitmap.free(oldBlock);
+        }
+
+        for (int i = 0; i < newBlocks.size(); i++) {
+            int start = i * blockSize;
+            int end = Math.min(start + blockSize, bytes.length);
+            byte[] chunk = new byte[end - start];
+            System.arraycopy(bytes, start, chunk, 0, end - start);
+            disk.writeBlock(newBlocks.get(i), chunk);
+        }
+
+        inode.setBlocks(newBlocks);
+        inode.setSize(bytes.length);
+        logger.log(LogLevel.INFO, "File written: " + toAbsolutePath(parts) + " (" + bytes.length + "B)");
+        return bytes.length;
+    }
+
+    public synchronized FileContentDto cat(String cwd, String targetPath) {
+        List<String> parts = normalizeComponents(cwd, targetPath);
+        int inodeNumber = walk(parts);
+        Inode inode = inodeTable[inodeNumber];
+        if (inode.getType() != InodeType.FILE) {
+            throw new ForgeOSException("디렉터리는 cat으로 읽을 수 없습니다: " + targetPath);
+        }
+
+        byte[] buffer = new byte[(int) inode.getSize()];
+        int offset = 0;
+        for (int blockNumber : inode.getBlocks()) {
+            byte[] blockData = disk.readBlock(blockNumber);
+            int copyLen = Math.min(buffer.length - offset, blockData.length);
+            System.arraycopy(blockData, 0, buffer, offset, copyLen);
+            offset += copyLen;
+        }
+
+        String name = parts.isEmpty() ? "/" : parts.get(parts.size() - 1);
+        return new FileContentDto(name, new String(buffer, StandardCharsets.UTF_8));
+    }
+
+    public synchronized TreeNodeDto tree(String cwd, String targetPath) {
+        String resolvedTarget = (targetPath == null || targetPath.isBlank()) ? "." : targetPath;
+        List<String> parts = normalizeComponents(cwd, resolvedTarget);
+        int inodeNumber = walk(parts);
+        String name = parts.isEmpty() ? "/" : parts.get(parts.size() - 1);
+        return buildTree(inodeNumber, name);
+    }
+
+    private TreeNodeDto buildTree(int inodeNumber, String name) {
+        Inode inode = inodeTable[inodeNumber];
+        if (inode.getType() == InodeType.FILE) {
+            return new TreeNodeDto(name, false, List.of());
+        }
+        Directory dir = directories.get(inodeNumber);
+        List<TreeNodeDto> children = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : dir.getEntries().entrySet()) {
+            children.add(buildTree(entry.getValue(), entry.getKey()));
+        }
+        return new TreeNodeDto(name, true, children);
+    }
+}
+```
+
+---
+
+# 36. filesystem/Inode.java
+
+**Path**
+`src/main/java/forgeframework/filesystem/Inode.java`
+
+```java
+package forgeframework.filesystem;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 파일 또는 디렉터리의 메타데이터.
+ *
+ * <p>실제 유닉스 파일 시스템처럼 이름은 inode에 저장하지 않는다 — 이름은
+ * 오직 {@link Directory}의 엔트리(이름 → inode 번호)에만 존재한다. 그래서
+ * 같은 파일에 여러 이름(하드링크)을 붙이는 것도 개념적으로는 가능한 구조지만,
+ * 지금 단계에서는 링크 기능 자체를 만들지 않았다.</p>
+ */
+public final class Inode {
+
+    private final int inodeNumber;
+    private final InodeType type;
+    private long size;
+    private List<Integer> blocks = new ArrayList<>();
+
+    public Inode(int inodeNumber, InodeType type) {
+        this.inodeNumber = inodeNumber;
+        this.type = type;
+    }
+
+    public int getInodeNumber() {
+        return inodeNumber;
+    }
+
+    public InodeType getType() {
+        return type;
+    }
+
+    public long getSize() {
+        return size;
+    }
+
+    public void setSize(long size) {
+        this.size = size;
+    }
+
+    public List<Integer> getBlocks() {
+        return blocks;
+    }
+
+    public void setBlocks(List<Integer> blocks) {
+        this.blocks = blocks;
+    }
+}
+```
+
+---
+
+# 37. filesystem/InodeType.java
+
+**Path**
+`src/main/java/forgeframework/filesystem/InodeType.java`
+
+```java
+package forgeframework.filesystem;
+
+/**
+ * inode가 파일인지 디렉터리인지 구분하는 열거형.
+ */
+public enum InodeType {
+    FILE,
+    DIRECTORY
+}
+```
+
+---
+
+# 38. filesystem/SuperBlock.java
+
+**Path**
+`src/main/java/forgeframework/filesystem/SuperBlock.java`
+
+```java
+package forgeframework.filesystem;
+
+/**
+ * 파일 시스템 전체의 메타데이터를 담는 슈퍼 블록.
+ */
+public final class SuperBlock {
+
+    private final int totalBlocks;
+    private final int blockSize;
+    private final int totalInodes;
+    private final int rootInodeNumber;
+
+    public SuperBlock(int totalBlocks, int blockSize, int totalInodes, int rootInodeNumber) {
+        this.totalBlocks = totalBlocks;
+        this.blockSize = blockSize;
+        this.totalInodes = totalInodes;
+        this.rootInodeNumber = rootInodeNumber;
+    }
+
+    public int getTotalBlocks() {
+        return totalBlocks;
+    }
+
+    public int getBlockSize() {
+        return blockSize;
+    }
+
+    public int getTotalInodes() {
+        return totalInodes;
+    }
+
+    public int getRootInodeNumber() {
+        return rootInodeNumber;
+    }
+}
+```
+
+---
+
+# 39. filesystem/TreeNodeDto.java
+
+**Path**
+`src/main/java/forgeframework/filesystem/TreeNodeDto.java`
+
+```java
+package forgeframework.filesystem;
+
+import java.util.List;
+
+/**
+ * {@code tree} 명령용 재귀적 트리 구조 DTO. 렌더링(├──/└── 등)은 전적으로
+ * TreeCommand(Shell 계층)의 책임이다.
+ */
+public record TreeNodeDto(String name, boolean isDirectory, List<TreeNodeDto> children) {
+}
+```
+
+---
+
+# 40. filesystem/VirtualDisk.java
+
+**Path**
+`src/main/java/forgeframework/filesystem/VirtualDisk.java`
+
+```java
+package forgeframework.filesystem;
+
+import java.util.Arrays;
+
+/**
+ * disk.img 역할을 하는 가상 디스크.
+ *
+ * <p>고정 크기의 데이터 블록 배열({@code byte[][]})로 구성된다. 실제 파일
+ * 내용은 문자열을 바이트로 변환해 블록 단위로 저장/조회된다.</p>
+ */
+public final class VirtualDisk {
+
+    private final byte[][] blocks;
+    private final int blockSize;
+
+    public VirtualDisk(int totalBlocks, int blockSize) {
+        this.blockSize = blockSize;
+        this.blocks = new byte[totalBlocks][blockSize];
+    }
+
+    /**
+     * 블록 하나를 읽는다. 방어적 복사본을 반환한다.
+     *
+     * @param blockNumber 읽을 블록 번호
+     * @return 블록 내용의 복사본 (길이는 항상 blockSize)
+     */
+    public byte[] readBlock(int blockNumber) {
+        return blocks[blockNumber].clone();
+    }
+
+    /**
+     * 블록 하나에 데이터를 쓴다. data가 blockSize보다 짧으면 나머지는 0으로 채운다.
+     *
+     * @param blockNumber 쓸 블록 번호
+     * @param data        기록할 데이터 (blockSize 이하여야 함)
+     */
+    public void writeBlock(int blockNumber, byte[] data) {
+        byte[] target = blocks[blockNumber];
+        Arrays.fill(target, (byte) 0);
+        System.arraycopy(data, 0, target, 0, Math.min(data.length, blockSize));
+    }
+
+    public int getBlockSize() {
+        return blockSize;
+    }
+
+    public int getTotalBlocks() {
+        return blocks.length;
+    }
+}
+```
+
+---
+
+# 41. hardware/HardwareTimer.java
 
 **Path**
 `src/main/java/forgeframework/hardware/HardwareTimer.java`
@@ -990,7 +2283,7 @@ public class HardwareTimer {
 
 ---
 
-# 22. kernel/Kernel.java
+# 42. kernel/Kernel.java
 
 **Path**
 `src/main/java/forgeframework/kernel/Kernel.java`
@@ -1000,6 +2293,11 @@ package forgeframework.kernel;
 
 import forgeframework.common.ForgeOSConstants;
 import forgeframework.exception.ForgeOSException;
+import forgeframework.filesystem.DirectoryEntryDto;
+import forgeframework.filesystem.FileContentDto;
+import forgeframework.filesystem.FileListDto;
+import forgeframework.filesystem.FileSystemManager;
+import forgeframework.filesystem.TreeNodeDto;
 import forgeframework.logger.EventLogger;
 import forgeframework.logger.LogLevel;
 import forgeframework.memory.FrameInfo;
@@ -1037,6 +2335,7 @@ public final class Kernel {
 
     private ProcessManager processManager;
     private MemoryManager memoryManager;
+    private FileSystemManager fileSystemManager;
 
     private Kernel(EventLogger logger) {
         this.logger = logger;
@@ -1080,6 +2379,16 @@ public final class Kernel {
     }
 
     /**
+     * FileSystemManager를 커널에 등록한다.
+     * BootManager의 SUBSYSTEM_INIT 단계에서 호출된다.
+     *
+     * @param fileSystemManager 등록할 파일 시스템 매니저
+     */
+    public void registerFileSystemManager(FileSystemManager fileSystemManager) {
+        this.fileSystemManager = fileSystemManager;
+    }
+
+    /**
      * HardwareTimer로부터 발생하는 타이머 인터럽트를 처리한다.
      * ProcessManager에게 인터럽트 발생을 알려 Context Switch 등의 스케줄링을 유도한다.
      */
@@ -1106,6 +2415,14 @@ public final class Kernel {
             case MEMINFO -> handleMeminfo();
             case TRANSLATE -> handleTranslate(request.getArgs());
             case FRAMETABLE -> handleFrameTable();
+            case CD -> handleCd(request.getArgs());
+            case LS -> handleLs(request.getArgs());
+            case MKDIR -> handleMkdir(request.getArgs());
+            case TOUCH -> handleTouch(request.getArgs());
+            case RM -> handleRm(request.getArgs());
+            case WRITE -> handleWrite(request.getArgs());
+            case CAT -> handleCat(request.getArgs());
+            case TREE -> handleTree(request.getArgs());
         };
     }
 
@@ -1325,6 +2642,153 @@ public final class Kernel {
         return SystemCallResult.success("", snapshot);
     }
 
+    /**
+     * targetPath가 유효한 디렉터리인지 확인하고, 해석된 절대경로를 데이터로 반환한다.
+     * 사용법: cd &lt;path&gt;. args = [cwd, targetPath]
+     */
+    private SystemCallResult handleCd(String[] args) {
+        if (fileSystemManager == null) {
+            return SystemCallResult.failure("FileSystemManager가 로드되지 않았습니다.");
+        }
+        if (args.length < 2) {
+            return SystemCallResult.failure("사용법: cd <path>");
+        }
+        try {
+            String resolved = fileSystemManager.cd(args[0], args[1]);
+            return SystemCallResult.success(resolved, resolved);
+        } catch (ForgeOSException e) {
+            return SystemCallResult.failure(e.getMessage());
+        }
+    }
+
+    /**
+     * 디렉터리 내용을 나열한다. 표로 꾸미는 것은 LsCommand(Shell 계층)의 책임이라,
+     * 여기서는 FileListDto(순수 데이터)만 반환한다. args = [cwd, targetPath]
+     */
+    private SystemCallResult handleLs(String[] args) {
+        if (fileSystemManager == null) {
+            return SystemCallResult.failure("FileSystemManager가 로드되지 않았습니다.");
+        }
+        if (args.length < 2) {
+            return SystemCallResult.failure("사용법: ls [path]");
+        }
+        try {
+            FileListDto dto = fileSystemManager.ls(args[0], args[1]);
+            return SystemCallResult.success("", dto);
+        } catch (ForgeOSException e) {
+            return SystemCallResult.failure(e.getMessage());
+        }
+    }
+
+    /**
+     * 새 디렉터리를 생성한다. args = [cwd, targetPath]
+     */
+    private SystemCallResult handleMkdir(String[] args) {
+        if (fileSystemManager == null) {
+            return SystemCallResult.failure("FileSystemManager가 로드되지 않았습니다.");
+        }
+        if (args.length < 2) {
+            return SystemCallResult.failure("사용법: mkdir <name>");
+        }
+        try {
+            DirectoryEntryDto dto = fileSystemManager.mkdir(args[0], args[1]);
+            return SystemCallResult.success("", dto);
+        } catch (ForgeOSException e) {
+            return SystemCallResult.failure(e.getMessage());
+        }
+    }
+
+    /**
+     * 크기 0인 빈 파일을 생성한다 (이미 있으면 조용히 성공). args = [cwd, targetPath]
+     */
+    private SystemCallResult handleTouch(String[] args) {
+        if (fileSystemManager == null) {
+            return SystemCallResult.failure("FileSystemManager가 로드되지 않았습니다.");
+        }
+        if (args.length < 2) {
+            return SystemCallResult.failure("사용법: touch <name>");
+        }
+        try {
+            DirectoryEntryDto dto = fileSystemManager.touch(args[0], args[1]);
+            return SystemCallResult.success("", dto);
+        } catch (ForgeOSException e) {
+            return SystemCallResult.failure(e.getMessage());
+        }
+    }
+
+    /**
+     * 파일 또는 비어있는 디렉터리를 삭제한다. args = [cwd, targetPath]
+     */
+    private SystemCallResult handleRm(String[] args) {
+        if (fileSystemManager == null) {
+            return SystemCallResult.failure("FileSystemManager가 로드되지 않았습니다.");
+        }
+        if (args.length < 2) {
+            return SystemCallResult.failure("사용법: rm <name>");
+        }
+        try {
+            fileSystemManager.rm(args[0], args[1]);
+            return SystemCallResult.success("삭제되었습니다: " + args[1]);
+        } catch (ForgeOSException e) {
+            return SystemCallResult.failure(e.getMessage());
+        }
+    }
+
+    /**
+     * 파일 내용을 덮어쓴다. args = [cwd, targetPath, content]
+     */
+    private SystemCallResult handleWrite(String[] args) {
+        if (fileSystemManager == null) {
+            return SystemCallResult.failure("FileSystemManager가 로드되지 않았습니다.");
+        }
+        if (args.length < 3) {
+            return SystemCallResult.failure("사용법: write <name> <text>");
+        }
+        try {
+            int written = fileSystemManager.write(args[0], args[1], args[2]);
+            return SystemCallResult.success(written + "바이트 기록됨", written);
+        } catch (ForgeOSException e) {
+            return SystemCallResult.failure(e.getMessage());
+        }
+    }
+
+    /**
+     * 파일 내용을 읽는다. args = [cwd, targetPath]
+     */
+    private SystemCallResult handleCat(String[] args) {
+        if (fileSystemManager == null) {
+            return SystemCallResult.failure("FileSystemManager가 로드되지 않았습니다.");
+        }
+        if (args.length < 2) {
+            return SystemCallResult.failure("사용법: cat <name>");
+        }
+        try {
+            FileContentDto dto = fileSystemManager.cat(args[0], args[1]);
+            return SystemCallResult.success("", dto);
+        } catch (ForgeOSException e) {
+            return SystemCallResult.failure(e.getMessage());
+        }
+    }
+
+    /**
+     * 경로 하위 전체를 재귀적으로 탐색해 트리 구조(DTO)를 반환한다.
+     * 렌더링(├──/└── 등)은 TreeCommand(Shell 계층)의 책임이다. args = [cwd, targetPath]
+     */
+    private SystemCallResult handleTree(String[] args) {
+        if (fileSystemManager == null) {
+            return SystemCallResult.failure("FileSystemManager가 로드되지 않았습니다.");
+        }
+        if (args.length < 2) {
+            return SystemCallResult.failure("사용법: tree [path]");
+        }
+        try {
+            TreeNodeDto dto = fileSystemManager.tree(args[0], args[1]);
+            return SystemCallResult.success("", dto);
+        } catch (ForgeOSException e) {
+            return SystemCallResult.failure(e.getMessage());
+        }
+    }
+
     private String formatDuration(Duration duration) {
         long hours = duration.toHours();
         long minutes = duration.toMinutesPart();
@@ -1340,7 +2804,7 @@ public final class Kernel {
 
 ---
 
-# 23. logger/ConsoleLogListener.java
+# 43. logger/ConsoleLogListener.java
 
 **Path**
 `src/main/java/forgeframework/logger/ConsoleLogListener.java`
@@ -1369,7 +2833,7 @@ public class ConsoleLogListener implements LogListener {
 
 ---
 
-# 24. logger/EventLogger.java
+# 44. logger/EventLogger.java
 
 **Path**
 `src/main/java/forgeframework/logger/EventLogger.java`
@@ -1407,7 +2871,7 @@ public class EventLogger {
 
 ---
 
-# 25. logger/LogEntry.java
+# 45. logger/LogEntry.java
 
 **Path**
 `src/main/java/forgeframework/logger/LogEntry.java`
@@ -1469,7 +2933,7 @@ public final class LogEntry {
 
 ---
 
-# 26. logger/LogLevel.java
+# 46. logger/LogLevel.java
 
 **Path**
 `src/main/java/forgeframework/logger/LogLevel.java`
@@ -1498,7 +2962,7 @@ public enum LogLevel {
 
 ---
 
-# 27. logger/LogListener.java
+# 47. logger/LogListener.java
 
 **Path**
 `src/main/java/forgeframework/logger/LogListener.java`
@@ -1525,7 +2989,7 @@ public interface LogListener {
 
 ---
 
-# 28. memory/Frame.java
+# 48. memory/Frame.java
 
 **Path**
 `src/main/java/forgeframework/memory/Frame.java`
@@ -1583,7 +3047,7 @@ public final class Frame {
 
 ---
 
-# 29. memory/FrameInfo.java
+# 49. memory/FrameInfo.java
 
 **Path**
 `src/main/java/forgeframework/memory/FrameInfo.java`
@@ -1600,7 +3064,7 @@ public record FrameInfo(int frameNumber, boolean allocated, int ownerPid, int pa
 
 ---
 
-# 30. memory/FrameTable.java
+# 50. memory/FrameTable.java
 
 **Path**
 `src/main/java/forgeframework/memory/FrameTable.java`
@@ -1693,7 +3157,7 @@ public final class FrameTable {
 
 ---
 
-# 31. memory/Heap.java
+# 51. memory/Heap.java
 
 **Path**
 `src/main/java/forgeframework/memory/Heap.java`
@@ -1837,7 +3301,7 @@ public final class Heap {
 
 ---
 
-# 32. memory/HeapBlock.java
+# 52. memory/HeapBlock.java
 
 **Path**
 `src/main/java/forgeframework/memory/HeapBlock.java`
@@ -1887,7 +3351,7 @@ final class HeapBlock {
 
 ---
 
-# 33. memory/HeapSnapshot.java
+# 53. memory/HeapSnapshot.java
 
 **Path**
 `src/main/java/forgeframework/memory/HeapSnapshot.java`
@@ -1904,7 +3368,7 @@ public record HeapSnapshot(int pid, long capacity, long used, long free) {
 
 ---
 
-# 34. memory/MemoryManager.java
+# 54. memory/MemoryManager.java
 
 **Path**
 `src/main/java/forgeframework/memory/MemoryManager.java`
@@ -2145,7 +3609,7 @@ public final class MemoryManager {
 
 ---
 
-# 35. memory/MemorySnapshot.java
+# 55. memory/MemorySnapshot.java
 
 **Path**
 `src/main/java/forgeframework/memory/MemorySnapshot.java`
@@ -2177,7 +3641,7 @@ public record MemorySnapshot(
 
 ---
 
-# 36. memory/PageTable.java
+# 56. memory/PageTable.java
 
 **Path**
 `src/main/java/forgeframework/memory/PageTable.java`
@@ -2229,7 +3693,7 @@ public final class PageTable {
 
 ---
 
-# 37. memory/PhysicalMemory.java
+# 57. memory/PhysicalMemory.java
 
 **Path**
 `src/main/java/forgeframework/memory/PhysicalMemory.java`
@@ -2302,7 +3766,7 @@ public final class PhysicalMemory {
 
 ---
 
-# 38. memory/Tlb.java
+# 58. memory/Tlb.java
 
 **Path**
 `src/main/java/forgeframework/memory/Tlb.java`
@@ -2392,7 +3856,7 @@ public final class Tlb {
 
 ---
 
-# 39. memory/TranslationResult.java
+# 59. memory/TranslationResult.java
 
 **Path**
 `src/main/java/forgeframework/memory/TranslationResult.java`
@@ -2417,7 +3881,7 @@ public record TranslationResult(
 
 ---
 
-# 40. memory/VirtualAddressSpace.java
+# 60. memory/VirtualAddressSpace.java
 
 **Path**
 `src/main/java/forgeframework/memory/VirtualAddressSpace.java`
@@ -2464,7 +3928,7 @@ public final class VirtualAddressSpace {
 
 ---
 
-# 41. process/Process.java
+# 61. process/Process.java
 
 **Path**
 `src/main/java/forgeframework/process/Process.java`
@@ -2488,7 +3952,7 @@ public class Process {
 
 ---
 
-# 42. process/ProcessControlBlock.java
+# 62. process/ProcessControlBlock.java
 
 **Path**
 `src/main/java/forgeframework/process/ProcessControlBlock.java`
@@ -2565,7 +4029,7 @@ public class ProcessControlBlock {
 
 ---
 
-# 43. process/ProcessManager.java
+# 63. process/ProcessManager.java
 
 **Path**
 `src/main/java/forgeframework/process/ProcessManager.java`
@@ -2788,7 +4252,7 @@ public class ProcessManager {
 
 ---
 
-# 44. process/ProcessState.java
+# 64. process/ProcessState.java
 
 **Path**
 `src/main/java/forgeframework/process/ProcessState.java`
@@ -2807,7 +4271,7 @@ public enum ProcessState {
 
 ---
 
-# 45. process/scheduler/FcfsScheduler.java
+# 65. process/scheduler/FcfsScheduler.java
 
 **Path**
 `src/main/java/forgeframework/process/scheduler/FcfsScheduler.java`
@@ -2863,7 +4327,7 @@ public class FcfsScheduler implements Scheduler {
 
 ---
 
-# 46. process/scheduler/RoundRobinScheduler.java
+# 66. process/scheduler/RoundRobinScheduler.java
 
 **Path**
 `src/main/java/forgeframework/process/scheduler/RoundRobinScheduler.java`
@@ -2919,7 +4383,7 @@ public class RoundRobinScheduler implements Scheduler {
 
 ---
 
-# 47. process/scheduler/Scheduler.java
+# 67. process/scheduler/Scheduler.java
 
 **Path**
 `src/main/java/forgeframework/process/scheduler/Scheduler.java`
@@ -2972,7 +4436,7 @@ public interface Scheduler {
 
 ---
 
-# 48. shell/ForgeShell.java
+# 68. shell/ForgeShell.java
 
 **Path**
 `src/main/java/forgeframework/shell/ForgeShell.java`
@@ -2980,20 +4444,29 @@ public interface Scheduler {
 ```java
 package forgeframework.shell;
 
+import forgeframework.command.CatCommand;
+import forgeframework.command.CdCommand;
 import forgeframework.command.Command;
 import forgeframework.command.CommandRegistry;
-import forgeframework.command.HelpCommand;
-import forgeframework.command.ShutdownCommand;
-import forgeframework.command.UptimeCommand;
-import forgeframework.command.PsCommand;
 import forgeframework.command.ExecCommand;
-import forgeframework.command.KillCommand;
-import forgeframework.command.SchedulerCommand;
-import forgeframework.command.MallocCommand;
-import forgeframework.command.FreeCommand;
-import forgeframework.command.MeminfoCommand;
-import forgeframework.command.TranslateCommand;
 import forgeframework.command.FrameTableCommand;
+import forgeframework.command.FreeCommand;
+import forgeframework.command.HelpCommand;
+import forgeframework.command.KillCommand;
+import forgeframework.command.LsCommand;
+import forgeframework.command.MallocCommand;
+import forgeframework.command.MeminfoCommand;
+import forgeframework.command.MkdirCommand;
+import forgeframework.command.PsCommand;
+import forgeframework.command.PwdCommand;
+import forgeframework.command.RmCommand;
+import forgeframework.command.SchedulerCommand;
+import forgeframework.command.ShutdownCommand;
+import forgeframework.command.TouchCommand;
+import forgeframework.command.TranslateCommand;
+import forgeframework.command.TreeCommand;
+import forgeframework.command.UptimeCommand;
+import forgeframework.command.WriteCommand;
 import forgeframework.common.ForgeOSConstants;
 import forgeframework.kernel.Kernel;
 import forgeframework.syscall.SystemCallResult;
@@ -3004,13 +4477,15 @@ public class ForgeShell {
 
     private final Kernel kernel;
     private final CommandRegistry registry;
+    private final ShellContext context;
     private final ShellPrompt prompt;
     private final Scanner input;
 
     public ForgeShell(Kernel kernel) {
         this.kernel = kernel;
         this.registry = new CommandRegistry();
-        this.prompt = new ShellPrompt();
+        this.context = new ShellContext();
+        this.prompt = new ShellPrompt(context);
         this.input = new Scanner(System.in);
         registerDefaultCommands();
     }
@@ -3029,6 +4504,17 @@ public class ForgeShell {
         registry.register(new MeminfoCommand());
         registry.register(new TranslateCommand());
         registry.register(new FrameTableCommand());
+
+        // Phase 4 — File System
+        registry.register(new PwdCommand(context));
+        registry.register(new CdCommand(context));
+        registry.register(new LsCommand(context));
+        registry.register(new MkdirCommand(context));
+        registry.register(new TouchCommand(context));
+        registry.register(new RmCommand(context));
+        registry.register(new WriteCommand(context));
+        registry.register(new CatCommand(context));
+        registry.register(new TreeCommand(context));
     }
 
     public void run() {
@@ -3069,7 +4555,40 @@ public class ForgeShell {
 
 ---
 
-# 49. shell/ShellPrompt.java
+# 69. shell/ShellContext.java
+
+**Path**
+`src/main/java/forgeframework/shell/ShellContext.java`
+
+```java
+package forgeframework.shell;
+
+/**
+ * Shell이 소유하는 상태를 담는 컨테이너.
+ *
+ * <p>Kernel은 무상태(stateless)를 유지해야 API 서버(Web/GUI)로 재사용하기
+ * 쉬워진다. 그래서 현재 작업 디렉터리(CWD) 같은 "세션 상태"는 Kernel이나
+ * FileSystemManager가 아니라 여기, Shell 계층에 둔다. CD/PWD/파일시스템
+ * 명령어들은 생성자로 이 객체를 주입받아 CWD를 읽고(쓰기는 CdCommand만) 사용한다
+ * — {@link HelpCommand}가 {@link CommandRegistry}를 주입받는 것과 동일한 패턴이다.</p>
+ */
+public final class ShellContext {
+
+    private String currentWorkingDirectory = "/";
+
+    public String getCwd() {
+        return currentWorkingDirectory;
+    }
+
+    public void setCwd(String cwd) {
+        this.currentWorkingDirectory = cwd;
+    }
+}
+```
+
+---
+
+# 70. shell/ShellPrompt.java
 
 **Path**
 `src/main/java/forgeframework/shell/ShellPrompt.java`
@@ -3082,25 +4601,33 @@ import forgeframework.common.ForgeOSConstants;
 /**
  * ForgeShell의 프롬프트 문자열을 관리하는 클래스.
  *
- * <p>추후 현재 작업 디렉터리, 사용자 이름 등을 반영한
- * 동적인 프롬프트로 확장할 수 있도록 별도 클래스로 분리했다.</p>
+ * <p>Phase 4부터는 현재 작업 디렉터리(CWD)를 반영해
+ * {@code forgeframework:/usr/local> } 형태로 동적으로 렌더링한다.
+ * CWD 상태 자체는 {@link ShellContext}가 들고 있으므로, 이 클래스는
+ * 매 호출마다 그 값을 읽어 포맷팅만 담당한다.</p>
  */
 public class ShellPrompt {
 
+    private final ShellContext context;
+
+    public ShellPrompt(ShellContext context) {
+        this.context = context;
+    }
+
     /**
-     * 현재 프롬프트 문자열을 반환한다.
+     * 현재 프롬프트 문자열을 반환한다. (예: {@code forgeframework:/usr/local> })
      *
      * @return 프롬프트 문자열
      */
     public String render() {
-        return ForgeOSConstants.SHELL_PROMPT;
+        return ForgeOSConstants.SHELL_PROMPT_PREFIX + ":" + context.getCwd() + ForgeOSConstants.SHELL_PROMPT_SUFFIX;
     }
 }
 ```
 
 ---
 
-# 50. syscall/SystemCallRequest.java
+# 71. syscall/SystemCallRequest.java
 
 **Path**
 `src/main/java/forgeframework/syscall/SystemCallRequest.java`
@@ -3140,7 +4667,7 @@ public final class SystemCallRequest {
 
 ---
 
-# 51. syscall/SystemCallResult.java
+# 72. syscall/SystemCallResult.java
 
 **Path**
 `src/main/java/forgeframework/syscall/SystemCallResult.java`
@@ -3194,7 +4721,7 @@ public final class SystemCallResult {
 
 ---
 
-# 52. syscall/SystemCallType.java
+# 73. syscall/SystemCallType.java
 
 **Path**
 `src/main/java/forgeframework/syscall/SystemCallType.java`
@@ -3214,7 +4741,15 @@ public enum SystemCallType {
     FREE,
     MEMINFO,
     TRANSLATE,
-    FRAMETABLE
+    FRAMETABLE,
+    CD,
+    LS,
+    MKDIR,
+    TOUCH,
+    RM,
+    WRITE,
+    CAT,
+    TREE
 }
 ```
 
